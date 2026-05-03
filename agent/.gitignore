@@ -1,0 +1,15 @@
+# Embedded runtime + installed packages
+python/
+
+# Sensitive/local config
+config.ini
+
+# Runtime logs/cache
+*.log
+__pycache__/
+*.py[cod]
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

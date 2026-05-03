@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHSO Connect | Smart Claim Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] min-h-screen text-slate-700">
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-72 bg-white border-r border-slate-200 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-10 px-2">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg text-white">
+                        <i class="fas fa-shield-virus text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 leading-none">NHSO Connect</h1>
+                        <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Smart Claim Portal</p>
+                    </div>
+                </div>
+                <nav class="space-y-1">
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-semibold transition-all">
+                        <i class="fas fa-cog"></i> Configuration
+                    </a>
+                    <a href="/kiosk" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                        <i class="fas fa-desktop group-hover:text-indigo-500"></i> Kiosk
+                    </a>
+                    <a href="/docs" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                        <i class="fas fa-book group-hover:text-indigo-500"></i> API Docs
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-10 overflow-y-auto custom-scrollbar">
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">System Settings</h2>
+                    <p class="text-slate-500 text-sm">Configure database connections and NHSO credentials</p>
+                </div>
+                <div class="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+                    <button onclick="loadConfig()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                        <i class="fas fa-sync-alt mr-2"></i> Refresh
+                    </button>
+                    <button form="config-form" type="submit" class="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">
+                        Save All Changes
+                    </button>
+                </div>
+            </header>
+
+            <form id="config-form" class="space-y-8">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <!-- Left: Database Config -->
+                    <div class="space-y-8">
+                        <!-- HOSxP Card -->
+                        <section class="bg-white rounded-3xl border border-slate-200/60 card-shadow p-8">
+                            <div class="flex items-center gap-3 mb-8">
+                                <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                                    <i class="fas fa-database text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-slate-800">HOSxP Database</h3>
+                                    <p class="text-sm text-slate-400">Primary patient data source</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Engine</label>
+                                    <select id="hosxp_type" class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-2xl px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="mariadb">MariaDB / MySQL</option>
+                                        <option value="mssql">MSSQL (SQL Server)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Host / IP</label>
+                                    <input type="text" id="hosxp_host" class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="localhost">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <input type="text" id="hosxp_port" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Port">
+                                <input type="text" id="hosxp_db" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="DB Name">
+                                <input type="text" id="hosxp_user" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="User">
+                                <input type="password" id="hosxp_pass" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Pass">
+                            </div>
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                                <div class="overflow-hidden mr-4">
+                                    <p class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Connection URL</p>
+                                    <input type="text" id="HOSXP_DB_URL" name="HOSXP_DB_URL" class="w-full bg-transparent border-none text-[10px] font-mono text-slate-500 outline-none" readonly>
+                                </div>
+                                <button type="button" onclick="testDb('HOSXP_DB_URL')" class="whitespace-nowrap px-4 py-2 text-xs font-bold bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">Test</button>
+                            </div>
+                        </section>
+
+                        <!-- Privilege Search Card -->
+                        <section class="bg-white rounded-3xl border border-slate-200/60 card-shadow p-8">
+                            <div class="flex items-center gap-3 mb-6">
+                                <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                                    <i class="fas fa-search-plus"></i>
+                                </div>
+                                <h3 class="text-lg font-bold text-slate-800">Check Privilege (สิทธิ สปสช.)</h3>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="test-pid" placeholder="Enter Patient ID (13 digits)" class="flex-1 bg-slate-50 rounded-2xl px-4 py-3 text-sm font-bold ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-emerald-500">
+                                <button type="button" onclick="checkPrivilege()" id="btn-check" class="px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-md transition-all active:scale-95">CHECK</button>
+                            </div>
+                            <div id="privilege-result-container" class="mt-4 hidden animate-in fade-in slide-in-from-top-2">
+                                <div id="privilege-summary" class="grid grid-cols-2 gap-4 mb-4"></div>
+                            </div>
+                        </section>
+
+                        <!-- Database Setup Card -->
+                        <section class="bg-white rounded-3xl border border-slate-200/60 card-shadow p-8">
+                            <div class="flex items-center gap-3 mb-6">
+                                <div class="w-12 h-12 bg-violet-50 rounded-2xl flex items-center justify-center text-violet-600">
+                                    <i class="fas fa-database text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-slate-800">Database Setup</h3>
+                                    <p class="text-sm text-slate-400">Run schema migrations on nhso_claim_log</p>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 rounded-2xl p-4 mb-4 border border-slate-100">
+                                <p class="text-xs font-bold text-slate-400 uppercase mb-3">Migrations that will run:</p>
+                                <ul class="space-y-2 text-sm font-mono text-slate-600">
+                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN authen_code VARCHAR(50) NULL AFTER transaction_id</li>
+                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN api_mode VARCHAR(5) NULL AFTER error_message</li>
+                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN dep_code VARCHAR(20) NULL AFTER inscl_code</li>
+                                </ul>
+                            </div>
+                            <button type="button" onclick="showDbSetupConfirm()" class="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow transition-all">
+                                <i class="fas fa-play mr-2"></i>Run DB Setup
+                            </button>
+                        </section>
+                    </div>
+
+                    <!-- Right: Access & Testing -->
+                    <div class="space-y-8">
+                        <!-- Access Card -->
+                        <section class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
+                            <div class="relative z-10 space-y-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center">
+                                        <i class="fas fa-key text-indigo-300"></i>
+                                    </div>
+                                    <h3 class="text-xl font-bold tracking-tight">Access Credentials</h3>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Hospital Code</label>
+                                        <input type="text" id="HOSPITAL_CODE" name="HOSPITAL_CODE" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Recorder PID (Officer ID)</label>
+                                        <input type="text" id="RECORDER_PID" name="RECORDER_PID" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="13-digit ID">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">ชื่อโรงพยาบาล (Kiosk)</label>
+                                        <input type="text" id="KIOSK_HOSPITAL_NAME" name="KIOSK_HOSPITAL_NAME" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="โรงพยาบาล...">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">เบอร์โทร (Kiosk)</label>
+                                        <input type="text" id="KIOSK_HOSPITAL_PHONE" name="KIOSK_HOSPITAL_PHONE" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0-XXXX-XXXX">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">NHSO Bearer Token</label>
+                                    <input type="text" id="NHSO_TOKEN" name="NHSO_TOKEN" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] font-mono text-indigo-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="eyJ...">
+                                </div>
+                                <input type="hidden" id="NHSO_MODE"    name="NHSO_MODE"    value="PRD">
+                                <input type="hidden" id="NHSO_PRD_URL" name="NHSO_PRD_URL">
+                            </div>
+                        </section>
+
+                        <!-- Operation Console -->
+                        <section class="bg-white rounded-3xl border border-slate-200/60 card-shadow p-8">
+                            <div class="flex items-center gap-3 mb-8">
+                                <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                                    <i class="fas fa-rocket text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-bold text-slate-800">Quick Claim Test</h3>
+                                    <p class="text-sm text-slate-400">Fetch from HOSxP and Send to NHSO</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="test-vn" placeholder="Enter VN Number" class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-2xl px-4 py-4 font-bold text-slate-700 focus:ring-2 focus:ring-orange-500 outline-none">
+                                <button type="button" onclick="quickClaim()" id="btn-claim" class="px-8 bg-slate-900 hover:bg-black text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95">EXECUTE</button>
+                            </div>
+                        </section>
+
+                    </div>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-10 right-10 z-50 transform translate-y-20 opacity-0 transition-all duration-300">
+        <div class="bg-white border border-slate-200 shadow-xl px-6 py-4 rounded-2xl flex items-center gap-4">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-white"></div>
+            <p id="toast-msg" class="font-semibold text-slate-700"></p>
+        </div>
+    </div>
+
+    <!-- Modal for JSON Response -->
+    <div id="json-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" onclick="closeModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+            <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-[2rem] shadow-2xl sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                <div class="bg-white px-8 pt-8 pb-4">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-3">
+                            <div id="modal-icon-bg" class="w-10 h-10 rounded-xl flex items-center justify-center">
+                                <i id="modal-icon" class="fas"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-900" id="modal-title">Response Data</h3>
+                                <p class="text-xs text-slate-400 font-medium uppercase tracking-widest" id="modal-subtitle">NHSO API Result</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModal()" class="text-slate-300 hover:text-slate-600 transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <pre id="modal-json" class="p-6 rounded-2xl bg-slate-900 text-emerald-400 font-mono text-[11px] leading-relaxed overflow-x-auto custom-scrollbar max-h-[60vh] border-l-4 border-emerald-500"></pre>
+                        <button onclick="copyJson()" class="absolute top-4 right-4 text-slate-500 hover:text-white bg-slate-800/50 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all">
+                            <i class="fas fa-copy mr-1"></i> Copy
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-slate-50 px-8 py-6 flex justify-end gap-2">
+                    <button onclick="closeModal()" class="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-all">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- DB Setup Modal -->
+    <div id="db-setup-modal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg mx-4">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-violet-600">
+                    <i class="fas fa-database text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">ยืนยัน DB Setup</h2>
+                    <p class="text-sm text-slate-400">คำสั่ง SQL ที่จะรันบนฐานข้อมูล</p>
+                </div>
+            </div>
+            <div class="bg-slate-900 rounded-2xl p-4 mb-6 font-mono text-xs text-emerald-400 space-y-2">
+                <p>ALTER TABLE nhso_claim_log</p>
+                <p>&nbsp;&nbsp;ADD COLUMN IF NOT EXISTS authen_code VARCHAR(50) NULL</p>
+                <p>&nbsp;&nbsp;AFTER transaction_id;</p>
+                <p class="mt-2">ALTER TABLE nhso_claim_log</p>
+                <p>&nbsp;&nbsp;ADD COLUMN IF NOT EXISTS api_mode VARCHAR(5) NULL</p>
+                <p>&nbsp;&nbsp;AFTER error_message;</p>
+                <p class="mt-2">ALTER TABLE nhso_claim_log</p>
+                <p>&nbsp;&nbsp;ADD COLUMN IF NOT EXISTS dep_code VARCHAR(20) NULL</p>
+                <p>&nbsp;&nbsp;AFTER inscl_code;</p>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDbSetupModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all">
+                    ยกเลิก
+                </button>
+                <button type="button" onclick="runDbSetup()" id="btn-run-setup" class="flex-1 py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow transition-all">
+                    <i class="fas fa-play mr-2"></i>ยืนยัน รัน
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Force Change Password Modal -->
+    <div id="force-change-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md mx-4">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 bg-rose-100 rounded-2xl flex items-center justify-center text-rose-600">
+                    <i class="fas fa-lock text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">ตั้งค่ารหัสผ่านใหม่</h2>
+                    <p class="text-sm text-rose-500 font-semibold">ระบบตรวจพบรหัสผ่าน default กรุณาเปลี่ยนก่อนใช้งาน</p>
+                </div>
+            </div>
+            <div class="space-y-3 mt-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Username</label>
+                    <input type="text" id="force-username" class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">New Password</label>
+                    <input type="password" id="force-new-pass" class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Confirm Password</label>
+                    <input type="password" id="force-confirm-pass" class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <button type="button" onclick="forceChangePassword()" class="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow transition-all mt-2">
+                    <i class="fas fa-save mr-2"></i>บันทึกและเข้าใช้งาน
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FORCE_CHANGE = {{ force_change | tojson }};
+        if (FORCE_CHANGE) {
+            const m = document.getElementById('force-change-modal');
+            if(m) {
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
+        }
+
+        async function forceChangePassword() {
+            const username = document.getElementById('force-username').value;
+            const newPass = document.getElementById('force-new-pass').value;
+            const confirmPass = document.getElementById('force-confirm-pass').value;
+            if (!username || !newPass) return showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
+            if (newPass !== confirmPass) return showToast('รหัสผ่านไม่ตรงกัน', 'error');
+            try {
+                const res = await fetch('/api/v1/config/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, new_password: newPass, confirm_password: confirmPass })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('บันทึกสำเร็จ กรุณา login ใหม่');
+                    setTimeout(() => { location.reload(); }, 2000);
+                } else {
+                    showToast(data.detail || 'เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            }
+        }
+
+        function showJsonModal(title, data) {
+            const modal = document.getElementById('json-modal');
+            const modalJson = document.getElementById('modal-json');
+            const iconBg = document.getElementById('modal-icon-bg');
+            const icon = document.getElementById('modal-icon');
+
+            document.getElementById('modal-title').innerText = title;
+            modalJson.innerText = JSON.stringify(data, null, 2);
+            
+            const isErr = data.error || data.dataError || data.status === 'error' || data.status === 'system_error';
+            iconBg.className = `w-10 h-10 rounded-xl flex items-center justify-center ${isErr ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`;
+            icon.className = `fas ${isErr ? 'fa-exclamation-circle' : 'fa-check-circle'} text-xl`;
+            modalJson.className = `p-6 rounded-2xl bg-slate-900 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[60vh] border-l-4 ${isErr ? 'text-rose-400 border-rose-500' : 'text-emerald-400 border-emerald-500'}`;
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('json-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function copyJson() {
+            const text = document.getElementById('modal-json').innerText;
+            navigator.clipboard.writeText(text);
+            showToast('Copied to clipboard');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            icon.className = `w-8 h-8 rounded-full flex items-center justify-center text-white ${type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'}`;
+            icon.innerHTML = type === 'success' ? '<i class="fas fa-check"></i>' : '<i class="fas fa-exclamation"></i>';
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function updateUrls() {
+            const hType = document.getElementById('hosxp_type').value;
+            const hHost = document.getElementById('hosxp_host').value;
+            const hPort = document.getElementById('hosxp_port').value || (hType === 'mssql' ? '1433' : '3306');
+            const hUser = document.getElementById('hosxp_user').value;
+            const hPass = encodeURIComponent(document.getElementById('hosxp_pass').value);
+            const hDb = document.getElementById('hosxp_db').value;
+            document.getElementById('HOSXP_DB_URL').value = hType === 'mariadb' ? `mysql+pymysql://${hUser}:${hPass}@${hHost}:${hPort}/${hDb}` : `mssql+pyodbc://${hUser}:${hPass}@${hHost}:${hPort}/${hDb}?driver=ODBC+Driver+17+for+SQL+Server`;
+        }
+
+        const dbInputs = ['hosxp_type', 'hosxp_host', 'hosxp_port', 'hosxp_user', 'hosxp_pass', 'hosxp_db'];
+        dbInputs.forEach(id => document.getElementById(id).addEventListener('input', updateUrls));
+
+        function parseUrl(url, prefix) {
+            if (!url) return;
+            try {
+                let pattern = url.startsWith('mysql') ? /mysql\+pymysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/ : /mssql\+pyodbc:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/;
+                const match = url.match(pattern);
+                if (match) {
+                    if (prefix === 'hosxp') document.getElementById('hosxp_type').value = url.startsWith('mysql') ? 'mariadb' : 'mssql';
+                    document.getElementById(`${prefix}_user`).value = match[1];
+                    document.getElementById(`${prefix}_pass`).value = decodeURIComponent(match[2]);
+                    document.getElementById(`${prefix}_host`).value = match[3];
+                    document.getElementById(`${prefix}_port`).value = match[4];
+                    document.getElementById(`${prefix}_db`).value = match[5];
+                }
+            } catch (e) {}
+        }
+
+        async function loadConfig() {
+            const res = await fetch('/api/v1/config/');
+            const data = await res.json();
+            ['HOSPITAL_CODE', 'NHSO_TOKEN', 'HOSXP_DB_URL', 'RECORDER_PID', 'NHSO_PRD_URL', 'KIOSK_HOSPITAL_NAME', 'KIOSK_HOSPITAL_PHONE'].forEach(key => {
+                if (data[key] && document.getElementById(key)) document.getElementById(key).value = data[key];
+            });
+            parseUrl(data.HOSXP_DB_URL, 'hosxp');
+            updateUrls();
+        }
+
+        async function testDb(fieldId) {
+            const url = document.getElementById(fieldId).value;
+            if (!url) return showToast('Fill DB info', 'error');
+            const res = await fetch(`/api/v1/config/test-db?db_url=${encodeURIComponent(url)}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'success') showToast('Connected!'); else showToast('Failed: ' + data.message, 'error');
+        }
+
+        document.getElementById('config-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const res = await fetch('/api/v1/config/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            if (res.ok) showToast('Settings Saved'); else showToast('Save Failed', 'error');
+        };
+
+        async function checkPrivilege() {
+            const pid = document.getElementById('test-pid').value;
+            const token = document.getElementById('NHSO_TOKEN').value;
+            const btn = document.getElementById('btn-check');
+            const summary = document.getElementById('privilege-summary');
+            if (!pid) return showToast('Enter PID', 'error');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await fetch(`/api/v1/claim/check-privilege/${pid}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                showJsonModal('Privilege Search Result', data);
+                if (data.mainInsclCode) {
+                    document.getElementById('privilege-result-container').classList.remove('hidden');
+                    summary.innerHTML = `<div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100"><p class="text-[9px] font-bold text-indigo-400">RIGHT</p><p class="text-sm font-bold text-indigo-700">${data.mainInsclCode}</p></div><div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100"><p class="text-[9px] font-bold text-emerald-400">SUB</p><p class="text-sm font-bold text-emerald-700">${data.subInsclCode || '-'}</p></div>`;
+                }
+            } catch (err) { showToast('Error: ' + err.message, 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = 'CHECK'; }
+        }
+
+        async function quickClaim() {
+            const vn = document.getElementById('test-vn').value;
+            const token = document.getElementById('NHSO_TOKEN').value;
+            const btn = document.getElementById('btn-claim');
+            if (!vn) return showToast('Enter VN', 'error');
+            btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> EXECUTING...';
+            try {
+                const res = await fetch(`/api/v1/claim/fetch-and-send/${vn}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                showJsonModal('Claim Transmission Result', data);
+                if (data.status === 'success') showToast('Processed'); else showToast('Notice in JSON', 'error');
+            } catch (err) { showToast('API Error: ' + err.message, 'error'); }
+            finally { btn.disabled = false; btn.innerHTML = 'EXECUTE'; }
+        }
+
+
+        function showDbSetupConfirm() {
+            const m = document.getElementById('db-setup-modal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeDbSetupModal() {
+            const m = document.getElementById('db-setup-modal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        async function runDbSetup() {
+            const btn = document.getElementById('btn-run-setup');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Running...';
+            try {
+                const res = await fetch('/api/v1/config/run-db-setup', { method: 'POST' });
+                const data = await res.json();
+                closeDbSetupModal();
+                if (data.status === 'success') {
+                    showToast('DB Setup สำเร็จทุก migration');
+                    showJsonModal('DB Setup Result', data);
+                } else if (data.status === 'partial') {
+                    showToast('บาง migration มี error ตรวจสอบ result', 'error');
+                    showJsonModal('DB Setup Result', data);
+                } else {
+                    showToast(data.detail || 'เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i>ยืนยัน รัน';
+            }
+        }
+
+        loadConfig();
+    </script>
+</body>
+</html>

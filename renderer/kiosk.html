@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">NHSO - KIOSK</title>
+    <!-- User should download these files to ./assets/ -->
+    <script src="./assets/tailwindcss.js"></script>
+    <link rel="stylesheet" href="./assets/all.min.css">
+    <link rel="stylesheet" href="./assets/fonts.css">
+    <!-- Fallbacks during dev -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans Thai', sans-serif; }
+        .state-div { display: none; }
+        .state-active { display: flex; }
+        @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+        .countdown-bar { animation: shrink linear forwards; }
+    </style>
+</head>
+<body class="bg-slate-900 overflow-hidden select-none">
+
+    <!-- Admin link (top-right, subtle) -->
+    <div class="fixed top-3 right-3 z-50">
+        <a href="#" onclick="openAdminLogin(event)" class="text-white/20 hover:text-white/60 transition-colors text-xs flex items-center gap-1">
+            <i class="fa-solid fa-gear text-sm"></i> ตั้งค่า
+        </a>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-sm mx-4">
+            <h2 class="text-xl font-bold mb-4 text-slate-800">Admin Login</h2>
+            <input type="password" id="admin-password" class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-400 text-slate-800" placeholder="Password">
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="closeLoginModal()" class="px-4 py-2 bg-slate-100 rounded-xl text-slate-800 font-semibold">Cancel</button>
+                <button onclick="submitLogin()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATE: idle -->
+    <div id="state-idle" class="state-div state-active h-screen w-full flex-col items-center justify-center pb-40 bg-gradient-to-br from-indigo-700 to-slate-900 text-white">
+        <p class="text-[4rem] font-bold text-white mb-16 tracking-wide text-center">ระบบปิดสิทธิด้วยบัตรประชาชน</p>
+        <i class="fa-solid fa-id-card text-9xl mb-8 animate-bounce"></i>
+        <h1 class="text-5xl font-bold mb-4 text-center">กรุณาเสียบบัตรประชาชน</h1>
+        <p class="text-2xl text-indigo-200 text-center">Please Insert Your ID Card</p>
+        <div class="absolute bottom-16 text-center">
+            <div id="live-clock" class="text-4xl font-mono mb-3">00:00:00</div>
+            <p class="text-3xl font-bold tracking-wide hospital-name">โรงพยาบาล</p>
+        </div>
+    </div>
+
+    <!-- STATE: processing -->
+    <div id="state-processing" class="state-div h-screen w-full flex-col items-center justify-center bg-white">
+        <div class="w-24 h-24 border-8 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-8"></div>
+        <h2 id="process-name" class="text-4xl font-bold text-slate-800 mb-4">สวัสดี</h2>
+        <p class="text-2xl text-slate-500">กำลังดำเนินการ กรุณารอสักครู่...</p>
+    </div>
+
+    <!-- STATE: success -->
+    <div id="state-success" class="state-div h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-white overflow-y-auto py-10">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-9xl mb-4"></i>
+        <h1 class="text-5xl font-bold text-emerald-700 mb-6">บันทึกการใช้สิทธิ์เรียบร้อยแล้ว</h1>
+
+        <div class="bg-white p-6 rounded-3xl shadow-xl w-full max-w-3xl border border-emerald-100 mb-6">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-2xl">
+                <p class="text-slate-400 text-right">ผู้ป่วย:</p><p id="success-name" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">สิทธิ์:</p><p id="success-inscl" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เลขรับบริการ:</p><p id="success-vn" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เลขที่อ้างอิง:</p><p id="success-tid" class="font-mono text-blue-600">-</p>
+                <p class="text-slate-400 text-right">รหัสยืนยัน (Authen):</p><p id="success-authen" class="font-mono font-bold text-emerald-700">-</p>
+                <hr class="col-span-2 my-2 border-slate-100">
+                <p class="text-slate-400 text-right">ค่าใช้จ่ายทั้งหมด:</p><p id="success-total" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เบิกได้:</p><p id="success-privilege" class="font-bold text-emerald-600">-</p>
+                <p class="text-slate-400 text-right">จ่ายเอง:</p><p id="success-paid" class="font-bold text-orange-600">-</p>
+            </div>
+        </div>
+
+        <div class="w-full max-w-3xl bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <p class="text-sm text-slate-400 mb-2 font-mono uppercase tracking-wider">NHSO API Response:</p>
+            <pre id="success-response" class="text-xs text-slate-600 font-mono whitespace-pre-wrap break-all"></pre>
+        </div>
+    </div>
+
+    <!-- STATE: already_claimed -->
+    <div id="state-already_claimed" class="state-div h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white overflow-y-auto py-10">
+        <i class="fa-solid fa-circle-check text-blue-500 text-9xl mb-4"></i>
+        <h1 class="text-4xl font-bold text-blue-700 mb-6">ท่านได้รับการบันทึกการใช้สิทธิ์แล้ววันนี้</h1>
+
+        <div class="bg-white p-6 rounded-3xl shadow-xl w-full max-w-3xl border border-blue-100 mb-4">
+            <div class="grid grid-cols-2 gap-x-6 gap-y-3 text-2xl">
+                <p class="text-slate-400 text-right">ผู้ป่วย:</p><p id="already-name" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">สิทธิ์:</p><p id="already-inscl" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เลขรับบริการ:</p><p id="already-vn" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เลขที่อ้างอิง:</p><p id="already-tid" class="font-mono text-blue-600">-</p>
+                <hr class="col-span-2 my-2 border-slate-100">
+                <p class="text-slate-400 text-right">ค่าใช้จ่ายทั้งหมด:</p><p id="already-total" class="font-bold text-slate-800">-</p>
+                <p class="text-slate-400 text-right">เบิกได้:</p><p id="already-privilege" class="font-bold text-blue-600">-</p>
+                <p class="text-slate-400 text-right">จ่ายเอง:</p><p id="already-paid" class="font-bold text-orange-600">-</p>
+            </div>
+        </div>
+        <p class="text-xl text-slate-400 italic">ไม่ต้องดำเนินการซ้ำ ระบบได้บันทึกข้อมูลไว้เรียบร้อยแล้ว</p>
+    </div>
+
+    <!-- STATE: no_visit -->
+    <div id="state-no_visit" class="state-div h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-orange-50 to-white">
+        <i class="fa-solid fa-triangle-exclamation text-orange-500 text-9xl mb-8"></i>
+        <h1 class="text-4xl font-bold text-orange-700 mb-4">ไม่พบข้อมูลการเข้ารับบริการวันนี้</h1>
+        <p class="text-2xl text-slate-600 mb-8">กรุณาติดต่อช่องลงทะเบียน</p>
+        <p class="text-3xl font-bold text-slate-800"><i class="fa-solid fa-phone mr-2"></i><span class="hospital-phone"></span></p>
+    </div>
+
+    <!-- STATE: error -->
+    <div id="state-error" class="state-div h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-red-50 to-white">
+        <i class="fa-solid fa-circle-xmark text-red-500 text-9xl mb-8"></i>
+        <h1 class="text-4xl font-bold text-red-700 mb-4">ระบบขัดข้องชั่วคราว</h1>
+        <p class="text-2xl text-slate-600 mb-8">กรุณาติดต่อเจ้าหน้าที่</p>
+        <p class="text-3xl font-bold text-slate-800"><i class="fa-solid fa-phone mr-2"></i><span class="hospital-phone"></span></p>
+    </div>
+
+    <!-- Countdown Bar -->
+    <div id="countdown-container" class="fixed bottom-0 left-0 w-full h-4 bg-slate-100 hidden">
+        <div id="countdown-bar" class="h-full bg-blue-500 countdown-bar"></div>
+    </div>
+
+    <script>
+        let AUTO_RESET_SEC = 8;
+        let resetTimer = null;
+
+        async function init() {
+            try {
+                const config = await window.electronAPI.invoke('config:get');
+                document.getElementById('page-title').innerText = `NHSO - KIOSK - ${config.KIOSK_HOSPITAL_NAME || 'โรงพยาบาล'}`;
+                document.querySelectorAll('.hospital-name').forEach(el => el.innerText = config.KIOSK_HOSPITAL_NAME || 'โรงพยาบาล');
+                document.querySelectorAll('.hospital-phone').forEach(el => el.innerText = config.KIOSK_HOSPITAL_PHONE || '');
+                if (config.KIOSK_AUTO_RESET_SEC) AUTO_RESET_SEC = parseInt(config.KIOSK_AUTO_RESET_SEC);
+            } catch(e) {
+                console.error('Failed to load config', e);
+            }
+        }
+        init();
+
+        // --- Admin Login ---
+        function openAdminLogin(e) {
+            e.preventDefault();
+            document.getElementById('login-modal').classList.replace('hidden', 'flex');
+            document.getElementById('admin-password').focus();
+        }
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.replace('flex', 'hidden');
+            document.getElementById('admin-password').value = '';
+        }
+        async function submitLogin() {
+            const pwd = document.getElementById('admin-password').value;
+            const ok = await window.electronAPI.invoke('admin:verifyPassword', pwd);
+            if (ok) {
+                closeLoginModal();
+                window.electronAPI.invoke('admin:open');
+            } else {
+                alert('Incorrect password');
+            }
+        }
+        document.getElementById('admin-password').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') submitLogin();
+        });
+
+        // --- Audio ---
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+        function playTone(freq, duration, startOffset = 0, type = 'sine', gain = 0.35) {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const vol = ctx.createGain();
+            osc.connect(vol);
+            vol.connect(ctx.destination);
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+            vol.gain.setValueAtTime(gain, ctx.currentTime + startOffset);
+            vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + duration);
+            osc.start(ctx.currentTime + startOffset);
+            osc.stop(ctx.currentTime + startOffset + duration + 0.05);
+        }
+        function soundCardDetected() {
+            playTone(880, 0.12, 0);
+        }
+        function soundSuccess() {
+            playTone(523, 0.15, 0.00);   // C5
+            playTone(659, 0.15, 0.16);   // E5
+            playTone(784, 0.30, 0.32);   // G5
+        }
+        function soundAlreadyClaimed() {
+            playTone(659, 0.18, 0.00);   // E5
+            playTone(659, 0.18, 0.22);   // E5
+        }
+        function soundError() {
+            playTone(330, 0.25, 0.00, 'sawtooth', 0.3);
+            playTone(220, 0.35, 0.28, 'sawtooth', 0.3);
+        }
+
+        // --- TTS (gTTS via backend via IPC) ---
+        let _ttsAudio = null;
+        let _ttsDone = true;
+        let _pendingResult = null;
+
+        async function speak(text) {
+            if (_ttsAudio) { _ttsAudio.pause(); _ttsAudio = null; }
+            _ttsDone = false;
+            
+            try {
+                const audioUrl = await window.electronAPI.invoke('kiosk:tts', text);
+                _ttsAudio = new Audio(audioUrl);
+                const onDone = () => {
+                    _ttsDone = true;
+                    if (_pendingResult) {
+                        const fn = _pendingResult;
+                        _pendingResult = null;
+                        setTimeout(fn, 500);
+                    }
+                };
+                _ttsAudio.onended = onDone;
+                _ttsAudio.onerror = onDone;
+                _ttsAudio.play().catch(e => { onDone(); console.error('[TTS] play error:', e); });
+            } catch(e) {
+                _ttsDone = true;
+                if (_pendingResult) { _pendingResult(); _pendingResult = null; }
+            }
+        }
+
+        function showResult(fn) {
+            if (_ttsDone) {
+                setTimeout(fn, 500);
+            } else {
+                _pendingResult = fn;
+            }
+        }
+
+        // --- Clock & Format ---
+        function updateClock() {
+            document.getElementById('live-clock').innerText = new Date().toLocaleTimeString('th-TH');
+        }
+        setInterval(updateClock, 1000);
+
+        function fmt(n) {
+            return (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) + ' บาท';
+        }
+
+        // --- State Machine ---
+        function showState(stateId, data = {}) {
+            document.querySelectorAll('.state-div').forEach(div => div.classList.remove('state-active'));
+            const target = document.getElementById('state-' + stateId);
+            if (target) target.classList.add('state-active');
+
+            document.getElementById('countdown-container').classList.add('hidden');
+            if (resetTimer) clearTimeout(resetTimer);
+
+            if (stateId === 'processing') {
+                document.getElementById('process-name').innerText = 'กำลังดำเนินการ';
+
+            } else if (stateId === 'success') {
+                document.getElementById('success-name').innerText      = data.patient_name || '-';
+                document.getElementById('success-inscl').innerText     = data.inscl_code   || '-';
+                document.getElementById('success-vn').innerText        = data.visit_number || '-';
+                document.getElementById('success-tid').innerText       = data.transaction_id || '-';
+                document.getElementById('success-authen').innerText    = data.authen_code || (data.nhso_response && (data.nhso_response.authenCode || data.nhso_response.authen_code)) || '-';
+                document.getElementById('success-total').innerText     = fmt(data.total_amount);
+                document.getElementById('success-privilege').innerText = fmt(data.privilege_amount);
+                document.getElementById('success-paid').innerText      = fmt(data.paid_amount);
+                document.getElementById('success-response').innerText  = JSON.stringify(data.nhso_response || {}, null, 2);
+
+            } else if (stateId === 'already_claimed') {
+                document.getElementById('already-name').innerText      = data.patient_name || '-';
+                document.getElementById('already-inscl').innerText     = data.inscl_code   || '-';
+                document.getElementById('already-vn').innerText        = data.visit_number || '-';
+                document.getElementById('already-tid').innerText       = data.transaction_id || '-';
+                document.getElementById('already-total').innerText     = fmt(data.total_amount);
+                document.getElementById('already-privilege').innerText = fmt(data.privilege_amount);
+                document.getElementById('already-paid').innerText      = fmt(data.paid_amount);
+            }
+        }
+
+        function startCountdown(sec) {
+            const bar = document.getElementById('countdown-bar');
+            const container = document.getElementById('countdown-container');
+            container.classList.remove('hidden');
+            bar.style.animation = 'none';
+            bar.offsetHeight;
+            bar.style.animation = `shrink ${sec}s linear forwards`;
+            resetTimer = setTimeout(() => showState('idle'), sec * 1000);
+        }
+
+        // --- SSE (EventSource โดยตรง เหมือนเดิม) ---
+        async function connectStream() {
+            const port = await window.electronAPI.invoke('getBackendPort');
+            const evtSource = new EventSource(`http://127.0.0.1:${port}/api/v1/kiosk/stream`);
+            evtSource.addEventListener('open', () => showState('idle'));
+
+            evtSource.addEventListener('card_detected', e => {
+                _ttsDone = true;
+                _pendingResult = null;
+                soundCardDetected();
+                showState('processing', JSON.parse(e.data));
+                setTimeout(() => speak('กำลังทำรายการ'), 300);
+            });
+            evtSource.addEventListener('success', e => {
+                const data = JSON.parse(e.data);
+                showResult(() => {
+                    soundSuccess();
+                    showState('success', data);
+                    setTimeout(() => speak('บันทึกข้อมูลสำเร็จ กรุณาถอดบัตรประชาชนของท่านขอบคุณค่ะ'), 700);
+                    startCountdown(AUTO_RESET_SEC);
+                });
+            });
+            evtSource.addEventListener('already_claimed', e => {
+                const data = JSON.parse(e.data);
+                showResult(() => {
+                    soundAlreadyClaimed();
+                    showState('already_claimed', data);
+                    setTimeout(() => speak('ท่านได้รับการบันทึกการใช้สิทแล้ววันนี้ กรุณาเก็บบัตรประชาชนค่ะ'), 500);
+                    startCountdown(8);
+                });
+            });
+            evtSource.addEventListener('no_visit', e => {
+                const data = JSON.parse(e.data);
+                showResult(() => {
+                    soundError();
+                    showState('no_visit', data);
+                    setTimeout(() => speak('ไม่พบข้อมูลการเข้ารับบริการวันนี้ กรุณาติดต่อช่องลงทะเบียน'), 600);
+                    startCountdown(12);
+                });
+            });
+            evtSource.addEventListener('nhso_error', e => {
+                const data = JSON.parse(e.data);
+                showResult(() => {
+                    soundError();
+                    showState('error', data);
+                    setTimeout(() => speak('ระบบขัดข้องชั่วคราว กรุณาติดต่อเจ้าหน้าที่'), 600);
+                    startCountdown(12);
+                });
+            });
+            evtSource.addEventListener('db_error', e => {
+                const data = JSON.parse(e.data);
+                showResult(() => {
+                    soundError();
+                    showState('error', data);
+                    setTimeout(() => speak('ระบบขัดข้องชั่วคราว กรุณาติดต่อเจ้าหน้าที่'), 600);
+                    startCountdown(12);
+                });
+            });
+            evtSource.addEventListener('card_removed', () => showState('idle'));
+            evtSource.onerror = () => {
+                console.error('SSE connection lost. Reconnecting...');
+                evtSource.close();
+                setTimeout(connectStream, 3000);
+            };
+        }
+        connectStream();
+
+        // unlock AudioContext on first user interaction (browser policy)
+        document.addEventListener('click', () => getAudioCtx(), { once: true });
+
+        updateClock();
+    </script>
+</body>
+</html>

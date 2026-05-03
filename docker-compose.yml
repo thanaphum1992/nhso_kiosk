@@ -1,0 +1,21 @@
+services:
+  nhso-kiosk:
+    build: .
+    container_name: nhso-kiosk
+    ports:
+      - "8222:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Bangkok
+      - PYTHONUNBUFFERED=1
+      - APP_DIR=/app/logs
+    volumes:
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+

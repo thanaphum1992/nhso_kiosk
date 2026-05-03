@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node / Electron artifacts
+node_modules/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Logs
+*.log
+logs/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

@@ -1,0 +1,33 @@
+# Secrets — ห้าม copy เข้า image เด็ดขาด
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore
+
+# Electron Desktop App files (ไม่จำเป็นสำหรับ Docker)
+node_modules/
+main.js
+preload.js
+renderer/
+package.json
+package-lock.json
+
+# Dev/docs
+.claude/
+*.md
+BLUEPRINT.md
+KIOSK_BUILD_PROMPT.md
+
+# OS
+.DS_Store
+Thumbs.db
+*.log

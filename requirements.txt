@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pyodbc
+pymysql
+python-dotenv
+requests
+pydantic
+python-multipart
+jinja2
+pyscard
+sse-starlette
+pythaiidcard
+gtts
+pyinstaller

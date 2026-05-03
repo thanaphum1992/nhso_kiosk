@@ -1,0 +1,56 @@
+{
+  "name": "nhso-claim-desktop",
+  "version": "1.0.0",
+  "description": "NHSO Claim & Patient Kiosk Desktop Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:backend": "python -m PyInstaller --name backend --onedir --clean --noconfirm --hidden-import=uvicorn.logging --hidden-import=uvicorn.loops --hidden-import=uvicorn.loops.auto --hidden-import=uvicorn.protocols --hidden-import=uvicorn.protocols.http --hidden-import=uvicorn.protocols.http.auto --hidden-import=uvicorn.protocols.websockets --hidden-import=uvicorn.protocols.websockets.auto --hidden-import=uvicorn.lifespan --hidden-import=uvicorn.lifespan.on --hidden-import=uvicorn.lifespan.off --hidden-import=pymysql --hidden-import=pyodbc --hidden-import=sqlalchemy --hidden-import=passlib.handlers.bcrypt --collect-all fastapi --collect-all uvicorn --collect-all pydantic --collect-all jinja2 app/main.py",
+    "build:electron": "electron-builder --win nsis -c.extraMetadata.main=main.js",
+    "dist": "npm run build:backend && npm run build:electron",
+    "postinstall": "npm install electron-builder dotenv --save-dev"
+  },
+  "dependencies": {
+    "get-port": "^5.1.1",
+    "tree-kill": "^1.2.2"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.nhso.claim",
+    "productName": "NHSO Kiosk",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".env.example",
+        "to": ".env.example"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}

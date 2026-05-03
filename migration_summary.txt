@@ -1,0 +1,81 @@
+สรุปการแก้ไขสถาปัตยกรรมแอปพลิเคชัน NHSO Claim Kiosk สู่ Pure Desktop App
+Version: 1.0.0
+--------------------------------------------------------------------------------
+
+1. เปลี่ยนสถาปัตยกรรมหลัก (Architecture Shift)
+   - เปลี่ยนจากการให้ Python (FastAPI) ทำหน้าที่เสิร์ฟหน้าเว็บ (Web-served UI) ไปเป็นการให้ Electron โหลดไฟล์ HTML โดยตรงจากระบบไฟล์ (file://)
+   - Python Backend จะทำหน้าที่เป็นเพียง Local API Server อย่างเดียว ไม่เกี่ยวข้องกับการแสดงผลหน้าเว็บอีกต่อไป
+
+2. ฝั่ง Python Backend (app/main.py)
+   - ลบการทำงานของ Jinja2 Templates และโฟลเดอร์ `app/templates/` ออกทั้งหมด
+   - ลบระบบยืนยันตัวตน HTTP Basic Auth เดิมออก
+   - ลบ Endpoint ที่ใช้เสิร์ฟหน้าเว็บ (`/kiosk`, `/admin/config`) ออก
+   - เก็บเฉพาะ `/api/v1/` endpoints และระบบ Card Reader ไว้เหมือนเดิม
+
+3. ฝั่ง Electron Main Process (main.js)
+   - สร้าง IPC Handlers (`ipcMain.handle`) เพื่อรับคำสั่งจากฝั่งหน้าจอ (Renderer) และแปลงเป็นการยิง HTTP Request ไปยัง Local Python API Server แทน
+   - สร้างระบบเชื่อมต่อ SSE (Server-Sent Events) จาก Python Backend มาไว้ที่ฝั่ง Node.js แล้วทำการถ่ายทอด (Broadcast) Event กลับไปยังหน้าจอผ่านทาง IPC (`webContents.send`)
+   - ควบคุมการเปิดหน้า Admin ผ่านหน้าต่าง BrowserWindow แยก และมีระบบตรวจสอบรหัสผ่านผ่าน IPC
+
+4. ระบบความปลอดภัย (preload.js)
+   - สร้างไฟล์ `preload.js` เพื่อใช้งาน `contextBridge` ซึ่งเป็นมาตรฐานความปลอดภัยของ Electron
+   - เปิดให้ Renderer ใช้งานเฉพาะ `window.electronAPI` (`invoke`, `on`, `removeListener`) โดยไม่เปิดสิทธิ์ `nodeIntegration: true`
+
+5. ฝั่งหน้าจอ (Renderer: kiosk.html และ admin.html)
+   - ย้ายไฟล์หน้าจอมาไว้ที่โฟลเดอร์ใหม่ `renderer/`
+   - แปลงโค้ดจากที่เคยรับค่าผ่าน Jinja2 (`{{ variable }}`) เป็นการดึงค่าเริ่มต้นผ่าน IPC (`window.electronAPI.invoke('config:get')`) เมื่อโหลดหน้าจอ
+   - เปลี่ยนจากการใช้ `EventSource` ในฝั่ง JS มาเป็นการรับ Event ผ่าน `window.electronAPI.on('kiosk:event')`
+   - เปลี่ยนการยิง `fetch` API ทุกจุด เป็นการเรียก `window.electronAPI.invoke`
+   - เพิ่ม Login Modal ในหน้า Kiosk สำหรับการเข้าสู่หน้า Admin แทนการใช้ HTTP Basic Auth
+   - การเล่นเสียง Text-to-Speech (TTS) ถูกเปลี่ยนให้ร้องขอไฟล์เสียงแบบ Base64 ผ่าน IPC แทนการใช้ URL ของ `<audio>` ตรงๆ
+
+6. การกำหนดค่าการ Build (package.json)
+   - อัปเดตโครงสร้างไฟล์ในส่วน `"files"` สำหรับ `electron-builder` ให้รวมไฟล์ `preload.js` และโฟลเดอร์ `renderer/` เข้าไปในการแพ็กเกจ `.exe` ด้วย
+
+7. การรองรับการทำงานแบบออฟไลน์ (Local Assets)
+   - โค้ดในหน้า HTML ถูกเตรียมพร้อมสำหรับการเรียกใช้งานไลบรารีต่างๆ (Tailwind CSS, Font Awesome, Google Fonts) จากโฟลเดอร์ `renderer/assets/` แบบ Local เพื่อให้สามารถนำเครื่อง Kiosk ไปใช้งานในที่ที่ไม่มีอินเทอร์เน็ตภายนอกได้ (ณ ตอนนี้มี Fallback กลับไปใช้ CDN หากยังไม่มีไฟล์ Local)
+
+--------------------------------------------------------------------------------
+บันทึกการแก้บัค (Bug Fixes) หลัง Code Review — ไฟล์: main.js
+--------------------------------------------------------------------------------
+
+หลังจาก Gemini สร้างไฟล์ทั้งหมดแล้ว มีการ review และพบบัค 6 จุดใน main.js ที่ต้องแก้ไขก่อนรัน:
+
+บัคที่ 1: ขาด cwd ใน spawn()
+   - ปัญหา: `spawn(backendExe, args, { env })` ไม่มี `cwd` กำหนด
+   - ผลลัพธ์: Python รันจาก working directory ที่ผิด ทำให้ `import app.main` ล้มเหลว (ModuleNotFoundError)
+   - แก้ไข: เปลี่ยนเป็น `spawn(backendExe, args, { env, cwd: __dirname })`
+
+บัคที่ 2: backendPort hardcode เป็น 8000
+   - ปัญหา: ลบฟังก์ชัน `getFreePort()` ออกไป แล้วใช้ `let backendPort = 8000` ตายตัว
+   - ผลลัพธ์: ถ้า port 8000 ถูกใช้งานโดยโปรแกรมอื่นอยู่ backend จะ start ไม่ได้
+   - แก้ไข: เพิ่มฟังก์ชัน `getFreePort()` กลับมา และเรียก `backendPort = await getFreePort()` ใน `app.whenReady()`
+
+บัคที่ 3: `loadFile()` ใช้ relative path
+   - ปัญหา: `mainWindow.loadFile('renderer/kiosk.html')` และ `adminWin.loadFile('renderer/admin.html')`
+   - ผลลัพธ์: ใช้งานได้ใน dev mode แต่พังใน production build เพราะ working directory เปลี่ยน
+   - แก้ไข: เปลี่ยนเป็น `loadFile(path.join(__dirname, 'renderer', 'kiosk.html'))` และ `loadFile(path.join(__dirname, 'renderer', 'admin.html'))`
+
+บัคที่ 4: `setupIpcHandlers()` ถูกเรียกใน setTimeout ภายใน loadApp
+   - ปัญหา: IPC handlers ถูก register หลังจาก window โหลดแล้ว อาจเกิด race condition
+   - ผลลัพธ์: renderer อาจเรียก `electronAPI.invoke()` ก่อนที่ handler จะพร้อม
+   - แก้ไข: ย้าย `setupIpcHandlers()` ออกมาเรียกใน `app.whenReady()` ก่อน `createWindow()`
+
+บัคที่ 5: admin window เปิดซ้ำได้ไม่จำกัด
+   - ปัญหา: `ipcMain.handle('admin:open', ...)` สร้าง BrowserWindow ใหม่ทุกครั้งที่ถูกเรียก
+   - ผลลัพธ์: กดปุ่มเข้า admin หลายครั้งจะได้หน้าต่างหลายบาน
+   - แก้ไข: เพิ่มตัวแปร `let adminWindow = null` ระดับ module และเช็คก่อนสร้าง:
+     ถ้า adminWindow ยังมีอยู่ให้ `.focus()` แทน, และ set `adminWindow = null` เมื่อ window ถูกปิด
+
+บัคที่ 6: ใช้ `electron-is-dev` package แทน `!app.isPackaged`
+   - ปัญหา: `const isDev = require('electron-is-dev')` ต้องพึ่ง package นี้
+   - ผลลัพธ์: ไม่จำเป็นต้องใช้ package เพิ่ม และอาจมีปัญหาถ้า package ไม่ได้ติดตั้ง
+   - แก้ไข: เปลี่ยนกลับเป็น `const isDev = !app.isPackaged` ซึ่งเป็น Electron built-in
+
+บัคเพิ่มเติม (ก่อนหน้า ก่อนการ migrate):
+   - main.js เดิม (web-served): `loadEnvCredentials()` ไม่ตัด single/double quotes ออกจากค่าที่อ่านจาก .env
+   - ผลลัพธ์: `update_env_value()` ใน Python เขียนค่าแบบ `KEY='value'` (มี quote)
+     python-dotenv อ่านแล้วตัด quote ออกได้ถูกต้อง แต่ JavaScript parser อ่านได้ `'value'` (มี quote ติดมา)
+     ทำให้ Electron ส่ง credentials ผิด → 401 Unauthorized loop → ERR_TOO_MANY_RETRIES
+   - แก้ไข: เพิ่มโค้ดตัด surrounding quotes ใน `loadEnvCredentials()` ให้ตรงกับพฤติกรรมของ python-dotenv
+     (บัคนี้ไม่มีแล้วใน architecture ใหม่ เพราะไม่ใช้ HTTP Basic Auth อีกต่อไป)
