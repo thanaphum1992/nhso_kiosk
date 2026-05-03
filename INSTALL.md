@@ -1,118 +1,77 @@
-# คู่มือติดตั้ง NHSO Connect Kiosk
+# คู่มือติดตั้ง NHSO Authen Kiosk
 
-> สำหรับผู้ดูแลระบบโรงพยาบาล  
-> เวอร์ชัน 2.0 — Kiosk Edition
+เอกสารนี้อ้างอิงโครงสร้างปัจจุบันของ repo `nhso_claim/` สำหรับ deploy server ด้วย Docker และใช้งาน Local Agent บนเครื่อง Windows ที่ต่อเครื่องอ่านบัตร
 
----
+## ภาพรวมการ deploy
 
-## เลือกวิธีติดตั้ง
+ระบบแบ่งเป็น 2 ส่วนหลัก:
 
-| วิธี | เหมาะกับ | หน้านี้ |
+| ส่วน | โฟลเดอร์ | หน้าที่ |
 |---|---|---|
-| **Windows (Native)** | ติดตั้งบน Windows โดยตรง | [ข้ามไป](#windows-native) |
-| **Linux + Docker** ⭐ แนะนำ | Ubuntu/Debian — portable, ย้ายเครื่องง่าย | [ข้ามไป](#linux--docker) |
-| **Linux (Native)** | ไม่ต้องการ Docker | [ข้ามไป](#linux-native) |
+| Server | `nhso_claim/` | FastAPI web/API, เชื่อม HOSxP, ส่งข้อมูลไป NHSO, แสดงหน้า kiosk/admin |
+| Local Agent | `nhso_claim/agent/` | รันบน Windows client, อ่านบัตรจากเครื่องตัวเอง, ส่งข้อมูลไป server พร้อม `client_id` |
 
----
+ไฟล์ที่ต้องสร้างเองหลัง clone และไม่ควร commit:
 
-## ความต้องการของระบบ
-
-| รายการ | ขั้นต่ำ |
+| ไฟล์/โฟลเดอร์ | เหตุผล |
 |---|---|
-| OS | Windows 10/11 หรือ Ubuntu 22.04 LTS / Debian 12 |
-| RAM | 2 GB ขึ้นไป |
-| Network | เชื่อมต่อ HOSxP DB + Internet (NHSO API, Google TTS) |
-| Card Reader | PC/SC Smart Card Reader (รองรับ ISO 7816) |
+| `.env` | มีรหัสผ่าน DB, NHSO token, admin password |
+| `agent/config.ini` | config เฉพาะเครื่อง client |
+| `agent/python/` | Embedded Python และ package ที่ติดตั้งจาก `build_agent.bat` |
+| `logs/`, `*.log` | log runtime |
 
----
+## ติดตั้ง Server ด้วย Docker
 
----
+1. Clone หรือ copy repo ไปที่ server
 
-# Windows (Native)
-
-## ขั้นตอนที่ 1 — เตรียมไฟล์โปรแกรม
-
-รับไฟล์โปรแกรมจากผู้พัฒนา (ไม่ผ่าน Git) เช่น USB หรือ shared folder  
-แตกไฟล์ไปที่ `C:\nhso_kiosk\`
-
-```
-C:\nhso_kiosk\
-├── app\
-├── requirements.txt
-├── .env.example        ← ตัวอย่าง config (ไม่มีรหัสผ่านจริง)
-└── INSTALL.md
+```bash
+cd /opt
+git clone https://github.com/thanaphum1992/nhso_authen_kiosk.git nhso_claim
+cd nhso_claim
 ```
 
-> **สำคัญ:** ไฟล์ `.env` (ที่มีรหัสผ่านจริง) จะ**ไม่ถูกส่งมาด้วย**  
-> ต้องสร้างใหม่ตามขั้นตอนด้านล่าง
+2. สร้าง `.env` จาก `.env.example`
 
----
-
-## ขั้นตอนที่ 2 — ติดตั้ง Python Dependencies
-
-เปิด Command Prompt ในฐานะ Administrator แล้วรัน:
-
-```bat
-cd C:\nhso_kiosk
-pip install -r requirements.txt
+```bash
+cp .env.example .env
+nano .env
 ```
 
----
-
-## ขั้นตอนที่ 3 — เปิดใช้งาน Smart Card Service
-
-1. กด `Win + R` → พิมพ์ `services.msc`
-2. หา **Smart Card** → คลิกขวา → Properties
-3. Startup type: **Automatic**
-4. กด **Start** → OK
-
----
-
-## ขั้นตอนที่ 4 — สร้างไฟล์ `.env`
-
-> ไฟล์นี้เก็บ credential ทั้งหมด **ห้ามส่งต่อหรืออัปโหลดที่ใดทั้งสิ้น**
-
-สร้างไฟล์ใหม่ชื่อ `.env` ที่ `C:\nhso_kiosk\.env` แล้วกรอกข้อมูล:
+ค่าหลักที่ต้องตรวจ:
 
 ```env
-# ========== Database HOSxP ==========
-HOSXP_DB_URL=mysql+pymysql://ชื่อผู้ใช้:รหัสผ่าน@IP_เครื่องServer:3306/hospink
-
-# ========== NHSO API ==========
+HOSXP_DB_URL=mysql+pymysql://user:password@DB_HOST:3306/hospink
 NHSO_MODE=PRD
-NHSO_PRD_URL=https://nhsoapi.nhso.go.th/nhsoendpoint/api/nhso-claim-detail
-NHSO_TEST_URL=https://test.nhso.go.th/nhsoendpoint/api/nhso-claim-detail
-HOSPITAL_CODE=รหัสสถานพยาบาล_5_หลัก
-SOURCE_ID=รหัส_SOURCE_จาก_สปสช.
-NHSO_TOKEN=eyJhbGci...  (Bearer Token จาก สปสช.)
-RECORDER_PID=เลขบัตรประชาชนเจ้าหน้าที่ผู้บันทึก
-
-# ========== Kiosk ==========
-KIOSK_MODE=true
-CARD_READER_MOCK=false
-CARD_READER_NAME=
+NHSO_TOKEN=...
+HOSPITAL_CODE=XXXXX
+SOURCE_ID=XXXXX
+RECORDER_PID=1234567890123
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=change-this-password
 KIOSK_AUTO_RESET_SEC=8
-KIOSK_HOSPITAL_NAME=โรงพยาบาล...
+KIOSK_HOSPITAL_NAME=ชื่อโรงพยาบาล
 KIOSK_HOSPITAL_PHONE=0-XXXX-XXXX
 ```
 
-### วิธีดูชื่อ Card Reader (CARD_READER_NAME)
+3. Build และ start container
 
-เสียบ card reader แล้วรันคำสั่ง:
-
-```bat
-python -c "from smartcard.System import readers; print(readers())"
+```bash
+docker compose up -d --build
 ```
 
-ตัวอย่างผลลัพธ์: `['Feitian SCR301 0']`  
-→ ใส่ชื่อนั้นใน `CARD_READER_NAME=Feitian SCR301 0`  
-(หรือเว้นว่างเพื่อให้ระบบเลือก reader แรกที่พบ)
+4. เปิดใช้งานผ่าน port ภายนอก `8222`
 
----
+| หน้า/API | URL |
+|---|---|
+| Kiosk | `http://SERVER_IP:8222/kiosk` |
+| Admin | `http://SERVER_IP:8222/admin` |
+| Status | `http://SERVER_IP:8222/api/v1/kiosk/status` |
 
-## ขั้นตอนที่ 5 — สร้างตาราง Database
+หมายเหตุ: ใน container แอปรันที่ port `8000` แต่ `docker-compose.yml` map ออกมาที่ host เป็น `8222:8000`
 
-เชื่อมต่อ MariaDB แล้วรัน SQL นี้ใน database `hospink`:
+## Database
+
+ในหน้า Admin สามารถทดสอบ connection และสั่ง setup ตารางได้ หรือสร้างตารางเองใน database HOSxP:
 
 ```sql
 CREATE TABLE IF NOT EXISTS nhso_claim_log (
@@ -138,264 +97,79 @@ CREATE TABLE IF NOT EXISTS nhso_claim_log (
 );
 ```
 
-> หากสร้างตารางไปแล้วก่อนหน้า ให้รัน ALTER เพิ่ม column:
->
-> ```sql
-> ALTER TABLE nhso_claim_log ADD COLUMN authen_code VARCHAR(50) AFTER transaction_id;
-> ALTER TABLE nhso_claim_log ADD COLUMN dep_code VARCHAR(20) AFTER inscl_code;
-> ```
+## ติดตั้ง Local Agent บนเครื่อง Windows Client
 
----
+ใช้เมื่อเครื่องอ่านบัตรอยู่คนละเครื่องกับ server หรือมีหลายเครื่องเสียบบัตรพร้อมกัน ระบบจะจับคู่ผลลัพธ์ด้วย `client_id` เพื่อไม่ให้หน้า kiosk ของเครื่องอื่นรับข้อมูลผิดเครื่อง
 
-## ขั้นตอนที่ 6 — รันระบบ
+1. Copy โฟลเดอร์ `agent/` ไปไว้ที่เครื่อง client เช่น
 
-```bat
-cd C:\nhso_kiosk
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+```text
+C:\nhso_agent\
 ```
 
-> ใช้ `--workers 1` เท่านั้น เพราะ card reader queue เป็น in-memory
+2. สร้างไฟล์ `config.ini` ในโฟลเดอร์เดียวกัน
 
-เปิด browser แล้วไปที่:
-- **หน้า Kiosk:** `http://localhost:8000/kiosk`
-- **ตรวจสอบสถานะ:** `http://localhost:8000/api/v1/kiosk/status`
-
----
-
-## ขั้นตอนที่ 7 — ตั้งให้รันอัตโนมัติเมื่อเปิดเครื่อง
-
-สร้างไฟล์ `start_kiosk.bat`:
-
-```bat
-@echo off
-cd C:\nhso_kiosk
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+```ini
+[agent]
+server_url = http://SERVER_IP:8222
+client_id =
+dep_code =
 ```
 
-สร้างไฟล์ `start_browser.bat` (รันบน**เครื่อง Kiosk ที่ต่อจอ**):
+ความหมาย:
 
-```bat
-@echo off
-REM รอให้ server พร้อมก่อน
-timeout /t 5 /nobreak
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
-  --kiosk --noerrdialogs --disable-infobars ^
-  "http://IP_SERVER:8000/kiosk?client_id=%COMPUTERNAME%"
-```
-
-> `%COMPUTERNAME%` จะถูกแทนที่ด้วยชื่อเครื่องอัตโนมัติ ตรงกับที่ Local Agent ส่งไป
-
-จากนั้นตั้ง Task Scheduler ให้รัน **ทั้งสองไฟล์** เมื่อเปิดเครื่อง:
-1. `Win + R` → `taskschd.msc`
-2. Create Basic Task → ตั้งชื่อ "NHSO Kiosk"
-3. Trigger: **When the computer starts**
-4. Action: **Start a program** → เลือก `start_kiosk.bat`
-5. ติ๊ก "Run with highest privileges"
-6. (ถ้าเครื่องนี้ต่อจอด้วย) ทำซ้ำขั้นตอนเดิมสำหรับ `start_browser.bat`
-
----
-
-## Admin Config Page
-
-หน้า config ถูกย้ายและป้องกันด้วย Basic Auth:
-
-```
-http://SERVER_IP:8000/admin/config
-```
-
-ตั้ง username/password ใน `.env`:
-
-```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=ตั้งรหัสผ่านที่แข็งแรง
-```
-
-> **สำคัญ:** เปลี่ยน `ADMIN_PASSWORD` จาก `changeme` ทันทีก่อนใช้งานจริง
-
----
-
-## การรักษาความปลอดภัย Credential
-
-### สิ่งที่ต้องทำ
-
-| รายการ | วิธีการ |
+| ค่า | รายละเอียด |
 |---|---|
-| จำกัดสิทธิ์อ่านไฟล์ `.env` | คลิกขวา `.env` → Properties → Security → ให้สิทธิ์เฉพาะ Administrator |
-| ไม่ส่ง `.env` ผ่าน Email/Line | ส่งด้วย USB หรือ RDP เท่านั้น |
-| ไม่ commit ขึ้น Git | ไฟล์ `.gitignore` ป้องกันแล้ว |
-| เปลี่ยน NHSO_TOKEN เมื่อหมดอายุ | แก้ที่ `.env` แล้ว restart server |
-| ใช้ DB user เฉพาะ (ไม่ใช้ root) | สร้าง user ที่มีสิทธิ์ SELECT บน `ovst`, `vn_stat`, `patient` และ INSERT/SELECT บน `nhso_claim_log` เท่านั้น |
+| `server_url` | URL server ใช้ port `8222` ตาม `docker-compose.yml` |
+| `client_id` | ถ้าว่าง ระบบจะใช้ชื่อเครื่อง Windows และบันทึกลง `config.ini` อัตโนมัติ |
+| `dep_code` | ถ้าตั้งค่า จะเลือก visit เฉพาะแผนกนั้นก่อนส่งเคลม |
 
-### สร้าง DB User สำหรับระบบนี้โดยเฉพาะ
+3. รัน `build_agent.bat` 1 ครั้ง เพื่อติดตั้ง Embedded Python และ packages
 
-```sql
--- รันใน MariaDB ด้วย root
-CREATE USER 'nhso_kiosk'@'IP_เครื่อง_kiosk' IDENTIFIED BY 'รหัสผ่านแข็งแรง';
-
-GRANT SELECT ON hospink.ovst         TO 'nhso_kiosk'@'IP_เครื่อง_kiosk';
-GRANT SELECT ON hospink.vn_stat      TO 'nhso_kiosk'@'IP_เครื่อง_kiosk';
-GRANT SELECT ON hospink.patient      TO 'nhso_kiosk'@'IP_เครื่อง_kiosk';
-GRANT SELECT, INSERT ON hospink.nhso_claim_log TO 'nhso_kiosk'@'IP_เครื่อง_kiosk';
-
-FLUSH PRIVILEGES;
+```bat
+build_agent.bat
 ```
 
-จากนั้นใส่ใน `.env`:
-```env
-HOSXP_DB_URL=mysql+pymysql://nhso_kiosk:รหัสผ่านแข็งแรง@IP_Server:3306/hospink
+หลังติดตั้งเสร็จ script จะลบไฟล์ติดตั้งชั่วคราว เช่น `python-embed.zip`, `get-pip.py`, `__pycache__`
+
+4. ใช้งานประจำวันด้วย `Card_reader_agent.bat`
+
+```bat
+Card_reader_agent.bat
 ```
 
----
+ไฟล์นี้จะ:
 
-## การตรวจสอบ pttype Mapping
+- อ่าน `server_url` จาก `config.ini`
+- เปิด browser ไปที่ `http://SERVER_IP:8222/kiosk?client_id=%COMPUTERNAME%`
+- start `local_agent.py`
+- ถ้ายังไม่มี `agent/python/python.exe` จะเรียก `build_agent.bat` ให้อัตโนมัติ
 
-ตรวจสอบรหัสสิทธิ์ในฐานข้อมูลโรงพยาบาล:
+## การจับคู่หลายเครื่อง
 
-```sql
-SELECT pttype, COUNT(*) as จำนวน
-FROM ovst
-WHERE vstdate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-GROUP BY pttype
-ORDER BY จำนวน DESC;
+ระบบปัจจุบันส่ง event เฉพาะ subscriber ที่มี `client_id` ตรงกัน:
+
+```text
+เครื่อง A: agent client_id = KIOSK-A -> browser /kiosk?client_id=KIOSK-A
+เครื่อง B: agent client_id = KIOSK-B -> browser /kiosk?client_id=KIOSK-B
 ```
 
-นำผลลัพธ์ไปแก้ไข mapping ใน `app/services/nhso_api.py` บรรทัด `map_nhso_inscl`:
+ถ้าตั้ง `client_id` เองใน `config.ini` ต้องเปิด browser ด้วยค่าเดียวกันทุกตัวอักษร เช่น:
 
-```python
-mapping = {
-    "XX": "UCS",   # บัตรทอง — ใส่ pttype จริงของโรงพยาบาล
-    "XX": "OFC",   # ข้าราชการ
-    "XX": "SSS",   # ประกันสังคม
-    "XX": "LGO",   # อปท.
-}
+```text
+config.ini: client_id = ER-01
+browser:    http://SERVER_IP:8222/kiosk?client_id=ER-01
 ```
 
----
+## Log
 
-## แก้ไข NHSO Token เมื่อหมดอายุ
+| ส่วน | ที่เก็บ |
+|---|---|
+| Server app log | `./logs/nhso_kiosk.log` |
+| Docker log | `docker compose logs -f nhso-kiosk` |
+| Agent log | `agent/agent.log` หรือ `%APPDATA%\NHSOLocalAgent\agent.log` ถ้ารันแบบ frozen |
 
-1. เปิดไฟล์ `C:\nhso_kiosk\.env`
-2. แก้ไขบรรทัด `NHSO_TOKEN=eyJ...` ใส่ token ใหม่
-3. บันทึกไฟล์
-4. Restart server (ปิด window แล้วรัน `start_kiosk.bat` ใหม่)
-
-> ไม่ต้องแก้ไข source code ใดๆ
-
----
-
-## Checklist ก่อน Go Live
-
-- [ ] เปลี่ยน `NHSO_MODE=PRD`
-- [ ] ใส่ `NHSO_TOKEN` ที่ยังไม่หมดอายุ
-- [ ] ตรวจสอบ `pttype mapping` ถูกต้อง
-- [ ] ทดสอบ `/api/v1/kiosk/status` แสดง `reader_available: true`
-- [ ] ทดสอบเสียบบัตรจริง 1 ใบ (mode TEST ก่อน)
-- [ ] ตรวจสอบ `nhso_claim_log` มีข้อมูลบันทึก
-- [ ] จำกัดสิทธิ์ไฟล์ `.env`
-- [ ] ตั้ง Task Scheduler รันอัตโนมัติ
-
----
-
----
-
-# Linux + Docker
-
-> ⭐ แนะนำสำหรับการ deploy จริง — portable, restart อัตโนมัติ, ย้ายเครื่องง่าย  
-> **หลักการ:** pcscd daemon อยู่บน host, แอปอยู่ใน container, คุยกันผ่าน Unix socket
-
-## ขั้นตอนที่ 1 — ติดตั้ง pcscd บน Host
-
-```bash
-sudo apt update
-sudo apt install -y pcscd pcsc-tools
-sudo systemctl enable pcscd
-sudo systemctl start pcscd
-
-# ทดสอบว่า reader เจอไหม (เสียบ card reader ก่อน)
-pcsc_scan
-```
-
-## ขั้นตอนที่ 2 — ติดตั้ง Docker
-
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-## ขั้นตอนที่ 3 — วางไฟล์โปรแกรม
-
-```bash
-sudo mkdir -p /opt/nhso_kiosk
-cd /opt/nhso_kiosk
-# copy ไฟล์โปรแกรมทั้งหมดมาไว้ที่นี่
-```
-
-## ขั้นตอนที่ 4 — สร้างไฟล์ `.env`
-
-```bash
-cp .env.example .env
-nano .env   # กรอกข้อมูลจริง
-chmod 600 .env   # จำกัดสิทธิ์อ่านเฉพาะ owner
-```
-
-เนื้อหา `.env`:
-
-```env
-HOSXP_DB_URL=mysql+pymysql://nhso_kiosk:password@192.168.x.x:3306/hospink
-NHSO_MODE=PRD
-NHSO_PRD_URL=https://nhsoapi.nhso.go.th/nhsoendpoint/api/nhso-claim-detail
-HOSPITAL_CODE=XXXXX
-SOURCE_ID=XXXXX
-NHSO_TOKEN=eyJ...
-RECORDER_PID=1234567890123
-KIOSK_MODE=true
-CARD_READER_MOCK=false
-CARD_READER_NAME=
-KIOSK_AUTO_RESET_SEC=8
-KIOSK_HOSPITAL_NAME=โรงพยาบาล...
-KIOSK_HOSPITAL_PHONE=0-XXXX-XXXX
-```
-
-## ขั้นตอนที่ 5 — สร้างตาราง Database
-
-เชื่อมต่อ MariaDB แล้วรัน SQL เดียวกับหัวข้อ Windows ด้านบน
-
-## ขั้นตอนที่ 6 — Build และ Run
-
-```bash
-cd /opt/nhso_kiosk
-
-# Build image
-docker compose build
-
-# Run (background)
-docker compose up -d
-
-# ดู log
-docker compose logs -f
-```
-
-## ขั้นตอนที่ 7 — ตั้ง kiosk browser เปิดอัตโนมัติ
-
-ถ้าเครื่อง Linux ต่อจอแสดงผลสำหรับ kiosk:
-
-```bash
-# ติดตั้ง Chromium
-sudo apt install -y chromium-browser
-
-# สร้าง autostart (ใส่ computer name ใน URL อัตโนมัติ)
-mkdir -p ~/.config/autostart
-cat > ~/.config/autostart/nhso-kiosk.desktop << EOF
-[Desktop Entry]
-Type=Application
-Name=NHSO Kiosk
-Exec=bash -c 'sleep 5 && chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run "http://localhost:8000/kiosk?client_id=$(hostname)"'
-X-GNOME-Autostart-enabled=true
-EOF
-```
-
-> `$(hostname)` จะถูกแทนที่ด้วยชื่อเครื่องอัตโนมัติ ตรงกับที่ Local Agent ส่งไป
+`agent.log` ถูก mask ข้อมูลสำคัญแล้ว เช่น CID แสดงเฉพาะ 4 หลักท้าย และชื่อแสดงแบบย่อ
 
 ## คำสั่งที่ใช้บ่อย
 
@@ -403,255 +177,19 @@ EOF
 # ดูสถานะ container
 docker compose ps
 
-# restart (เช่น หลังแก้ .env)
-docker compose restart
-
-# อัปเดตโปรแกรมเวอร์ชันใหม่
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-
-# ดู log แบบ real-time
-docker compose logs -f nhso-kiosk
-```
-
----
-
-# Linux (Native)
-
-> สำหรับกรณีที่ไม่ต้องการใช้ Docker
-
-## ขั้นตอนที่ 1 — ติดตั้ง Dependencies
-
-```bash
-sudo apt update
-sudo apt install -y python3.11 python3.11-venv python3-pip \
-    pcscd pcsc-tools libpcsclite1 libpcsclite-dev \
-    build-essential unixodbc-dev
-
-sudo systemctl enable pcscd && sudo systemctl start pcscd
-```
-
-## ขั้นตอนที่ 2 — ติดตั้ง Python Packages
-
-```bash
-cd /opt/nhso_kiosk
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-## ขั้นตอนที่ 3 — สร้าง `.env` และ Database
-
-เหมือนกับขั้นตอนใน Linux + Docker ด้านบน
-
-## ขั้นตอนที่ 4 — ตั้ง systemd Service
-
-```bash
-sudo nano /etc/systemd/system/nhso-kiosk.service
-```
-
-```ini
-[Unit]
-Description=NHSO Kiosk
-After=network.target pcscd.service
-Wants=pcscd.service
-
-[Service]
-WorkingDirectory=/opt/nhso_kiosk
-ExecStart=/opt/nhso_kiosk/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-Restart=always
-RestartSec=5
-User=www-data
-EnvironmentFile=/opt/nhso_kiosk/.env
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable nhso-kiosk
-sudo systemctl start nhso-kiosk
-
-# ตรวจสอบสถานะ
-sudo systemctl status nhso-kiosk
-```
-
-## แก้ไข Token เมื่อหมดอายุ (Linux)
-
-```bash
-nano /opt/nhso_kiosk/.env   # แก้ NHSO_TOKEN
-
-# Docker
-docker compose restart
-
-# Native
-sudo systemctl restart nhso-kiosk
-```
-
----
-
-## Local Agent — กรณีหลายเครื่อง Kiosk
-
-> ใช้เมื่อ **เครื่องอ่านบัตร** อยู่คนละเครื่องกับ **Server** (Docker)  
-> Agent รันบน Windows PC ที่ต่อ card reader แล้วส่งข้อมูลไป Server ผ่าน HTTP
-
-### วางไฟล์
-
-```
-C:\nhso_agent\
-├── local_agent.py
-├── config.ini
-└── run_agent.bat
-```
-
-### config.ini
-
-```ini
-[agent]
-server_url = http://192.168.33.103:8000
-; client_id: ถ้าว่าง จะใช้ Computer Name ของเครื่องนี้โดยอัตโนมัติ
-; ให้ตรงกับ ?client_id= ใน URL ของ browser หน้า kiosk บนเครื่องเดียวกัน
-client_id =
-```
-
-> ดู Computer Name ของเครื่อง: `Win + R` → พิมพ์ `cmd` → รัน `hostname`
-
-### การจับคู่ Agent กับหน้าจอ Kiosk
-
-Agent ส่ง `client_id` (Computer Name) ไปกับทุก request → Server ส่ง SSE event ไปเฉพาะ browser ที่ใช้ `client_id` เดียวกัน
-
-**ตั้ง URL browser ของเครื่อง Kiosk ให้ตรงกับ Computer Name:**
-
-```
-http://192.168.33.103:8000/kiosk?client_id=KIOSK-PC-01
-```
-
-> แทนที่ `KIOSK-PC-01` ด้วยชื่อเครื่องจริง (ผลจากคำสั่ง `hostname`)
-
-**ถ้าแต่ละเครื่องมี IP ต่างกัน** (ไม่ได้อยู่หลัง NAT): ปล่อย `client_id =` ว่างได้ ระบบจะใช้ Computer Name อัตโนมัติ และ browser เปิดได้เลยโดยไม่ต้อง `?client_id=`
-
-> **สรุป:** `client_id` ใน config.ini และ URL ของ browser **ต้องตรงกันทุกตัวอักษร**
-
-### run_agent.bat
-
-```bat
-@echo off
-cd /d C:\nhso_agent
-python local_agent.py
-pause
-```
-
-ตั้ง Task Scheduler ให้รัน `run_agent.bat` เมื่อเปิดเครื่อง (เหมือนขั้นตอนที่ 7 ของ Windows)
-
-### ติดตั้ง Dependencies บนเครื่อง Agent
-
-```bat
-pip install requests pythaiidcard pyscard
-```
-
----
-
-## การดู Log ระบบ
-
-ระบบเก็บ log 2 ชั้น ทำงานอัตโนมัติหลัง deploy:
-
-| ชั้น | ที่เก็บ | เนื้อหา |
-|---|---|---|
-| **Docker stdout** | Docker json-file driver | uvicorn start/stop, HTTP request, print() |
-| **App log** (`nhso_kiosk.log`) | `/opt/nhso_kiosk/logs/` บน host | DEBUG/INFO/ERROR ละเอียด ทุก API call |
-
-### โครงสร้างไฟล์ log
-
-```
-/opt/nhso_kiosk/
-└── logs/
-    ├── nhso_kiosk.log        ← log ล่าสุด
-    ├── nhso_kiosk.log.1      ← rotate อัตโนมัติ เมื่อครบ 5 MB
-    └── nhso_kiosk.log.2      ← เก็บย้อนหลัง 3 ไฟล์ (รวมสูงสุด ~15 MB)
-```
-
-Docker stdout จำกัด **50 MB** (10 MB × 5 ไฟล์) — Docker จัดการเองอัตโนมัติ
-
-### คำสั่งดู log
-
-```bash
-# ── Docker stdout (real-time) ──────────────────────────────────────
-# ดู log ทั้งหมด แบบ real-time
+# ดู log server
 docker compose logs -f nhso-kiosk
 
-# ดู 100 บรรทัดล่าสุด แล้วหยุด
-docker compose logs --tail=100 nhso-kiosk
+# restart หลังแก้ .env
+docker compose restart
 
-# ── App log (file บน host) ─────────────────────────────────────────
-# ดู real-time
-tail -f /opt/nhso_kiosk/logs/nhso_kiosk.log
-
-# ดู 50 บรรทัดล่าสุด
-tail -n 50 /opt/nhso_kiosk/logs/nhso_kiosk.log
-
-# กรองเฉพาะ ERROR
-grep "\[ERROR\]" /opt/nhso_kiosk/logs/nhso_kiosk.log
-
-# กรองเฉพาะผล NHSO API (success/fail)
-grep "\[NHSO\]" /opt/nhso_kiosk/logs/nhso_kiosk.log
-
-# กรองตามวันที่ เช่น วันที่ 3 พ.ค.
-grep "^2026-05-03" /opt/nhso_kiosk/logs/nhso_kiosk.log
-
-# ── ดูทั้งสองพร้อมกัน ──────────────────────────────────────────────
-# (ต้องติดตั้ง multitail: sudo apt install multitail)
-multitail /opt/nhso_kiosk/logs/nhso_kiosk.log \
-  -l "docker compose -f /opt/nhso_kiosk/docker-compose.yml logs -f nhso-kiosk"
-```
-
-### อ่าน log อย่างไร
-
-ตัวอย่าง log บรรทัดปกติ:
-
-```
-2026-05-03 09:15:32 [INFO]  nhso_kiosk: [CardReader] Mock mode started
-2026-05-03 09:15:45 [INFO]  nhso_kiosk: [Card] Processing CID=***3456 name=นาย ทดสอบ ระบบ
-2026-05-03 09:15:46 [INFO]  nhso_kiosk: [NHSO] VN=6605030001 response: {"responseCode":"200",...}
-2026-05-03 09:15:46 [INFO]  nhso_kiosk: [NHSO] VN=6605030001 SUCCESS — authen=ABC12345
-```
-
-ตัวอย่าง log เมื่อเกิด error:
-
-```
-2026-05-03 09:20:11 [ERROR] nhso_kiosk: [NHSO] VN=6605030002 FAILED — error={"dataError":"..."}
-2026-05-03 09:20:11 [ERROR] nhso_kiosk: [NHSO] RequestException: HTTPSConnectionPool...
-```
-
-### ตรวจสอบ log folder หลัง deploy ครั้งแรก
-
-```bash
-# ตรวจว่าโฟลเดอร์ logs ถูกสร้างและ mount ถูกต้อง
-ls -la /opt/nhso_kiosk/logs/
-
-# ถ้าโฟลเดอร์ยังไม่มี ให้สร้างก่อน แล้ว rebuild
-mkdir -p /opt/nhso_kiosk/logs
+# rebuild ใหม่
 docker compose up -d --build
 ```
 
-### Native (ไม่ใช้ Docker)
+## ตรวจระบบหลังติดตั้ง
 
-App log อยู่ที่ตำแหน่งเดียวกัน `/opt/nhso_kiosk/nhso_kiosk.log`
-
-```bash
-# ดู real-time
-tail -f /opt/nhso_kiosk/nhso_kiosk.log
-
-# ดูผ่าน systemd journal (stdout เท่านั้น)
-journalctl -u nhso-kiosk -f
-```
-
----
-
-## ติดต่อผู้พัฒนา
-
-หากพบปัญหาระหว่างติดตั้ง ติดต่อทีมพัฒนาพร้อมแนบ:
-1. Log: `docker compose logs` หรือ `journalctl -u nhso-kiosk`
-2. ผลลัพธ์จาก `http://IP:8000/api/v1/kiosk/status`
-3. ข้อความ error ที่ปรากฏ (ไม่ต้องส่ง `.env`)
+1. เปิด `http://SERVER_IP:8222/api/v1/kiosk/status` แล้วต้องได้ JSON status
+2. เปิด `http://SERVER_IP:8222/admin` และ login ด้วย `ADMIN_USERNAME` / `ADMIN_PASSWORD`
+3. ที่เครื่อง client เปิด `Card_reader_agent.bat`
+4. เสียบบัตรที่เครื่อง client นั้น แล้วผลต้องแสดงเฉพาะหน้า kiosk ที่มี `client_id` เดียวกัน

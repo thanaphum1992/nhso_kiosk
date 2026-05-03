@@ -1,195 +1,145 @@
-# NHSO Connect Kiosk — Project Structure
+# NHSO Authen Kiosk - Project Structure
 
-> คู่มือโครงสร้างโปรเจกต์สำหรับนักพัฒนาและผู้ดูแลระบบ
+เอกสารนี้อ้างอิงโครงสร้าง repo ปัจจุบันของ `nhso_claim/`
 
----
+## โครงสร้างไฟล์
 
-## ภาพรวมโฟลเดอร์
-
-```
-nhso_claim/                         ← root โปรเจกต์ (Docker / Server version)
-│
-├── app/                            ← Python FastAPI application
-│   ├── main.py                     ← entry point, route /, /kiosk, lifespan
+```text
+nhso_claim/
+├── app/
+│   ├── main.py                       # FastAPI entry point: /, /kiosk, /admin
 │   ├── api/
-│   │   ├── api.py                  ← รวม router ทั้งหมดไว้ที่เดียว
+│   │   ├── api.py                    # รวม router ภายใต้ /api/v1
 │   │   └── endpoints/
-│   │       ├── claim.py            ← API: ส่งเคลม, ตรวจสิทธิ์, fetch-and-send
-│   │       ├── config.py           ← API: อ่าน/บันทึก config, test DB, change password
-│   │       └── kiosk.py            ← API: SSE stream, card reader, remote-insert, TTS
+│   │       ├── claim.py              # API ส่งเคลม/ตรวจสิทธิ/fetch VN
+│   │       ├── config.py             # API config/admin/test DB/setup DB
+│   │       └── kiosk.py              # API kiosk/SSE/remote card/TTS
 │   ├── core/
-│   │   ├── config_manager.py       ← อ่าน/เขียน .env ด้วย python-dotenv
-│   │   └── logger.py               ← rotating file logger (nhso_kiosk.log)
+│   │   ├── auth.py                   # Basic Auth สำหรับหน้า admin
+│   │   ├── config_manager.py         # อ่าน/เขียน .env
+│   │   └── logger.py                 # rotating file logger
 │   ├── db/
-│   │   └── database.py             ← SQLAlchemy engine, SessionLocal, get_db()
+│   │   └── database.py               # SQLAlchemy engine/session
 │   ├── models/
-│   │   └── claim.py                ← Pydantic models: NHSOClaimDetail, Department
+│   │   └── claim.py                  # Pydantic models
 │   ├── services/
-│   │   ├── nhso_api.py             ← NHSOService: send_claim, check_privilege, log_claim
-│   │   ├── card_reader.py          ← ThaiCardReader: PC/SC reader (pyscard + pythaiidcard)
-│   │   └── card_mock.py            ← MockCardReader: สำหรับ dev/test
+│   │   ├── card_mock.py              # mock card reader สำหรับ dev
+│   │   ├── card_reader.py            # PC/SC card reader ฝั่ง server
+│   │   └── nhso_api.py               # HOSxP query + NHSO API + claim log
 │   └── templates/
-│       ├── kiosk.html              ← หน้าจอ Kiosk (Tailwind + SSE + TTS)
-│       └── index.html              ← หน้า Admin Config (Tailwind + Fetch API)
-│
-├── renderer/                       ← Electron renderer (Desktop App version เท่านั้น)
-│   ├── kiosk.html                  ← Kiosk UI สำหรับ Electron (ใช้ IPC แทน SSE โดยตรง)
-│   ├── admin.html                  ← Admin UI สำหรับ Electron
-│   └── icon.png                    ← ไอคอน tray
-│
-├── main.js                         ← Electron main process (Desktop App version)
-├── preload.js                      ← Electron preload / contextBridge
-├── local_agent.py                  ← Local Agent: อ่านบัตร → ส่ง remote-insert API
-│
-├── Dockerfile                      ← build Python app เป็น Docker image
-├── docker-compose.yml              ← deploy config: port, volume, logging, env
-├── requirements.txt                ← Python dependencies
-├── .env                            ← secrets จริง (ห้าม commit)
-├── .env.example                    ← template สำหรับสร้าง .env ใหม่
-├── .dockerignore                   ← ไฟล์ที่ไม่ copy เข้า image
-├── package.json                    ← Electron / electron-builder config
-│
-├── logs/                           ← สร้างอัตโนมัติเมื่อ deploy (mount จาก container)
-│   └── nhso_kiosk.log              ← app log (rotate 5 MB × 3 ไฟล์)
-│
-├── INSTALL.md                      ← คู่มือติดตั้ง (Windows / Linux+Docker / Native)
-├── STRUCTURE.md                    ← ไฟล์นี้
-└── migration_summary.txt           ← บันทึกการเปลี่ยนสถาปัตยกรรม Electron
+│       ├── index.html                # หน้า Admin
+│       └── kiosk.html                # หน้า Kiosk web
+├── agent/
+│   ├── local_agent.py                # Windows Local Agent อ่านบัตรและ POST ไป server
+│   ├── build_agent.bat               # setup Embedded Python + packages
+│   ├── Card_reader_agent.bat         # เปิด kiosk browser + start agent
+│   ├── .gitignore                    # กัน config/runtime/log ของ agent
+│   └── ขั้นตอนติดตั้งบนเครื่อง kiosk ใหม่.md
+├── renderer/
+│   ├── admin.html                    # Electron renderer
+│   ├── kiosk.html                    # Electron renderer
+│   └── icon.png
+├── main.js                           # Electron main process
+├── preload.js                        # Electron preload
+├── package.json
+├── package-lock.json
+├── local_agent.py                    # legacy/local copy ของ agent
+├── Dockerfile
+├── docker-compose.yml                # service nhso-kiosk, host port 8222
+├── requirements.txt
+├── .env.example
+├── .dockerignore
+├── .gitignore
+├── .gitattributes
+├── INSTALL.md
+├── STRUCTURE.md
+└── migration_summary.txt
 ```
 
----
+## ไฟล์ runtime ที่ไม่ควร commit
 
-## หน้าที่ของแต่ละไฟล์หลัก
+| Path | เหตุผล |
+|---|---|
+| `.env` | secrets จริงของ server |
+| `logs/`, `*.log` | runtime logs |
+| `agent/config.ini` | config เฉพาะเครื่อง client |
+| `agent/python/` | Embedded Python และ packages ที่ build แล้ว |
+| `node_modules/` | dependency generated จาก npm |
+| `__pycache__/`, `*.pyc` | Python cache |
 
-### `app/main.py`
-Entry point ของ FastAPI app
+## Server routes
 
 | Route | หน้าที่ |
 |---|---|
 | `GET /` | redirect ไป `/kiosk` |
-| `GET /kiosk` | render `kiosk.html` พร้อม hospital_name, client_id |
-| `GET /admin/config` | render `index.html` (ต้อง Basic Auth) |
-| `GET /api/v1/...` | delegate ไปยัง api_router |
+| `GET /kiosk` | แสดงหน้า kiosk |
+| `GET /admin` | แสดงหน้า admin config และป้องกันด้วย Basic Auth |
 
-lifespan: start/stop card reader เมื่อ server เริ่ม/หยุด
+## API routes
 
----
+Base path คือ `/api/v1`
 
-### `app/api/endpoints/claim.py`
-API สำหรับเจ้าหน้าที่ / HIS
+### Claim
 
 | Endpoint | หน้าที่ |
 |---|---|
-| `POST /api/v1/claim/send-detail` | รับ JSON แล้วส่งเคลมไป NHSO โดยตรง |
-| `GET /api/v1/claim/check-privilege/{pid}` | ตรวจสิทธิ์ผู้ป่วยจาก NHSO |
-| `GET /api/v1/claim/fetch-and-send/{vn}` | ดึงข้อมูลจาก HOSxP แล้วส่งเคลม |
+| `POST /api/v1/claim/send-detail` | ส่ง claim detail ไป NHSO โดยตรง |
+| `GET /api/v1/claim/check-privilege/{pid}` | ตรวจสิทธิจาก NHSO |
+| `GET /api/v1/claim/fetch-and-send/{vn}` | ดึงข้อมูลจาก HOSxP ตาม VN แล้วส่งเคลม |
 
----
-
-### `app/api/endpoints/kiosk.py`
-API สำหรับ Kiosk flow
+### Config
 
 | Endpoint | หน้าที่ |
 |---|---|
-| `GET /api/v1/kiosk/status` | สถานะ card reader + NHSO mode |
-| `GET /api/v1/kiosk/stream?client_id=` | SSE stream — ส่ง event บัตรไปยัง browser |
-| `POST /api/v1/kiosk/remote-insert` | รับ CID จาก Local Agent แล้ว process + broadcast |
-| `POST /api/v1/kiosk/dev/mock-card` | จำลองเสียบบัตร (เฉพาะ CARD_READER_MOCK=true) |
-| `GET /api/v1/kiosk/tts?text=` | text-to-speech ภาษาไทย (gTTS) |
-| `POST /api/v1/kiosk/claim-by-cid` | ส่งเคลมตาม CID โดยตรง (ไม่ผ่าน SSE) |
-
----
-
-### `app/api/endpoints/config.py`
-API สำหรับหน้า Admin
-
-| Endpoint | หน้าที่ |
-|---|---|
-| `GET /api/v1/config/` | อ่านค่า config ปัจจุบันจาก .env |
-| `POST /api/v1/config/update` | บันทึก config ลง .env |
+| `GET /api/v1/config/` | อ่าน config ปัจจุบันจาก `.env` |
+| `POST /api/v1/config/update` | บันทึก config ลง `.env` |
+| `POST /api/v1/config/change-password` | เปลี่ยน admin password |
 | `POST /api/v1/config/test-db` | ทดสอบ DB connection |
-| `POST /api/v1/config/change-password` | เปลี่ยนรหัสผ่าน Admin |
+| `POST /api/v1/config/run-db-setup` | สร้าง/ปรับตาราง `nhso_claim_log` |
 
----
+### Kiosk
 
-### `app/services/nhso_api.py`
-Business logic หลัก — `NHSOService` class
-
-| Method | หน้าที่ |
+| Endpoint | หน้าที่ |
 |---|---|
-| `get_kiosk_visits(cid)` | query HOSxP: visit วันนี้ตาม CID |
-| `send_claim(detail, token)` | POST ไป NHSO API |
-| `check_privilege(pid, token)` | GET right-search จาก NHSO |
-| `check_duplicate(vn)` | ตรวจ nhso_claim_log ว่าเคยส่งสำเร็จแล้วหรือไม่ |
-| `log_claim(...)` | INSERT ผลการเคลมลง nhso_claim_log |
-| `map_nhso_inscl(pttype)` | แปลง HOSxP pttype → NHSO inscl code |
-| `fetch_data_from_db(vn)` | ดึงข้อมูล visit จาก VN (สำหรับ staff API) |
+| `GET /api/v1/kiosk/status` | ตรวจสถานะระบบ |
+| `GET /api/v1/kiosk/stream?client_id=...` | SSE stream เฉพาะ client |
+| `POST /api/v1/kiosk/remote-insert` | รับข้อมูลบัตรจาก Local Agent |
+| `POST /api/v1/kiosk/dev/mock-card` | mock card สำหรับ dev เมื่อเปิด mock mode |
+| `GET /api/v1/kiosk/tts` | Thai text-to-speech |
+| `POST /api/v1/kiosk/claim-by-cid` | สั่งเคลมจาก CID โดยตรง |
 
----
+## Flow หลายเครื่อง
 
-### `app/services/card_reader.py` / `card_mock.py`
-| Class | หน้าที่ |
+```text
+Windows Client
+  └─ Card_reader_agent.bat
+      ├─ เปิด browser: /kiosk?client_id=%COMPUTERNAME%
+      └─ local_agent.py อ่านบัตร
+          └─ POST /api/v1/kiosk/remote-insert
+                { cid, name_th, client_id, dep_code }
+
+FastAPI Server
+  └─ kiosk.py
+      ├─ query HOSxP visit วันนี้ตาม CID
+      ├─ ถ้ามี dep_code จะเลือก visit ของแผนกนั้นก่อน
+      ├─ ตรวจสิทธิ/ส่งเคลม NHSO
+      ├─ บันทึก nhso_claim_log
+      └─ broadcast SSE ไปเฉพาะ browser ที่ client_id ตรงกัน
+```
+
+จุดสำคัญคือ `client_id` ของ agent และ URL หน้า kiosk ต้องตรงกัน เพื่อป้องกันกรณีหลายเครื่องเสียบบัตรพร้อมกันแล้วข้อมูลไปแสดงผิดจอ
+
+## Docker deploy
+
+`docker-compose.yml` กำหนด service:
+
+| ค่า | ปัจจุบัน |
 |---|---|
-| `ThaiCardReader` | อ่านบัตรจริงผ่าน PC/SC (pyscard + pythaiidcard) |
-| `MockCardReader` | จำลองการเสียบบัตรผ่าน `POST /dev/mock-card` |
+| service | `nhso-kiosk` |
+| container | `nhso-kiosk` |
+| port | `8222:8000` |
+| env file | `.env` |
+| log volume | `./logs:/app/logs` |
+| restart | `unless-stopped` |
 
-ทั้งคู่ส่ง `CardEvent` เข้า queue → `kiosk.py` broadcast ต่อไปยัง SSE subscribers
-
----
-
-### `local_agent.py`
-รันบน Windows PC ที่ต่อ card reader (แยกจาก server)
-
-```
-เสียบบัตร → pyscard detect → pythaiidcard อ่าน CID + ชื่อ
-    → POST /api/v1/kiosk/remote-insert {cid, name_th, client_id}
-    → server process แล้ว broadcast SSE → browser แสดงผล
-```
-
-`client_id` ใช้ `socket.gethostname()` อัตโนมัติ (หรืออ่านจาก `config.ini`)
-
----
-
-## Kiosk Flow (ภาพรวม)
-
-```
-[บัตรประชาชน]
-      │
-      ▼
-[card_reader.py / local_agent.py]  — อ่าน CID + ชื่อ
-      │
-      ▼
-[kiosk.py: _process_card_async()]
-      ├─ get_kiosk_visits(cid)        — query HOSxP (vn_stat + ovst)
-      ├─ check_privilege(cid, token)  — ตรวจสิทธิ์สดจาก NHSO
-      ├─ check_duplicate(vn)          — กันส่งซ้ำ
-      ├─ send_claim(detail, token)    — POST → NHSO API
-      └─ log_claim(...)               — INSERT nhso_claim_log
-      │
-      ▼
-[SSE broadcast → kiosk.html]        — แสดงผล success / error / already_claimed
-      │
-      ▼ (auto reset หลัง N วินาที)
-[idle screen]
-```
-
----
-
-## Database Tables ที่ใช้
-
-| Table | Database | หน้าที่ |
-|---|---|---|
-| `ovst` | hospink | ข้อมูล visit (vn, hn, vstdate, pttype, hcode) |
-| `vn_stat` | hospink | สรุปการเงิน (income, rcpt_money, cid) |
-| `patient` | hospink | ข้อมูลผู้ป่วย (hn → cid) |
-| `nhso_claim_log` | hospink | **log การเคลม** — สร้างโดยระบบนี้ |
-
----
-
-## โฟลเดอร์ Deploy แยกตามการใช้งาน
-
-| โฟลเดอร์ | วัตถุประสงค์ |
-|---|---|
-| `nhso_claim/` | **Docker / Server** — FastAPI serve web + API บน Ubuntu |
-| `renderer/ + main.js` | **Electron Desktop App** — Python เป็น local backend |
-| `agent/` | **Local Agent** — รันบน Windows PC ที่ต่อ card reader |
+URL ใช้งานจากภายนอกจึงเป็น `http://SERVER_IP:8222/...` ส่วน healthcheck ใน container ใช้ `localhost:8000` ได้ถูกต้องแล้ว
