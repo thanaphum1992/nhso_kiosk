@@ -69,7 +69,7 @@ docker compose up -d --build
 
 ในหน้า Admin สามารถทดสอบ connection และสั่ง setup ตารางได้ หรือสร้างตารางเองใน database HOSxP:
 
-Database สร้าง แยกสำหรับ เก็บ log การขอ เลข ENDPOINT (โปรแกรมจะเช็ค VN ที่ข้อเเล้วจากคารางนี้)
+Database สร้าง แยกสำหรับ เก็บ log การขอ เลข ENDPOINT (โปรแกรมจะเช็ค VN ที่ขอเเล้วจากคารางนี้)
 ```sql
 CREATE TABLE IF NOT EXISTS nhso_claim_log (
     id               INT PRIMARY KEY AUTO_INCREMENT,
