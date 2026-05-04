@@ -53,23 +53,45 @@ def _safe_server_summary(response: requests.Response) -> str:
         return f"http_status={response.status_code}"
 
 # --- Config ---
-def _load_server_url() -> str:
+def _config_path() -> str:
     exe_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
-    config_path = os.path.join(exe_dir, 'config.ini')
+    return os.path.join(exe_dir, 'config.ini')
+
+def _save_config(cfg: configparser.ConfigParser, config_path: str) -> None:
+    with open(config_path, 'w', encoding='utf-8') as f:
+        cfg.write(f)
+
+def _load_server_url() -> str:
+    config_path = _config_path()
     cfg = configparser.ConfigParser()
     if os.path.exists(config_path):
         cfg.read(config_path, encoding='utf-8')
         log.info(f"Config loaded: {config_path}")
-    url = cfg.get('agent', 'server_url', fallback=os.environ.get('NHSO_SERVER_URL', ''))
+    else:
+        log.warning(f"config.ini not found. Creating default config: {config_path}")
+
+    if not cfg.has_section('agent'):
+        cfg.add_section('agent')
+
+    url = cfg.get('agent', 'server_url', fallback=os.environ.get('NHSO_SERVER_URL', 'http://localhost:8222')).strip()
     if not url:
-        log.error("server_url not set in config.ini — edit config.ini and restart")
-        sys.exit(1)
+        url = 'http://localhost:8222'
+
+    cfg.set('agent', 'server_url', url)
+    if not cfg.has_option('agent', 'client_id'):
+        cfg.set('agent', 'client_id', '')
+    if not cfg.has_option('agent', 'dep_code'):
+        cfg.set('agent', 'dep_code', '')
+    _save_config(cfg, config_path)
+
+    if url == 'http://localhost:8222':
+        log.warning("Using default server_url=http://localhost:8222. Edit config.ini if the server is on another computer.")
+
     return url.rstrip('/')
 
 def _load_client_id() -> str:
     import socket
-    exe_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
-    config_path = os.path.join(exe_dir, 'config.ini')
+    config_path = _config_path()
     cfg = configparser.ConfigParser()
     if os.path.exists(config_path):
         cfg.read(config_path, encoding='utf-8')
@@ -80,16 +102,14 @@ def _load_client_id() -> str:
         if not cfg.has_section('agent'):
             cfg.add_section('agent')
         cfg.set('agent', 'client_id', cid)
-        with open(config_path, 'w', encoding='utf-8') as f:
-            cfg.write(f)
-        log.info(f"client_id auto-set to computer name: {cid} → saved to config.ini")
+        _save_config(cfg, config_path)
+        log.info(f"client_id auto-set to computer name: {cid}; saved to config.ini")
     else:
         log.info(f"client_id loaded from config: {cid}")
     return cid
 
 def _load_dep_code() -> str:
-    exe_dir = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
-    config_path = os.path.join(exe_dir, 'config.ini')
+    config_path = _config_path()
     cfg = configparser.ConfigParser()
     if os.path.exists(config_path):
         cfg.read(config_path, encoding='utf-8')

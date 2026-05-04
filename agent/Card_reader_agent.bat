@@ -7,9 +7,22 @@ set "AGENT_DIR=%~dp0"
 set "PYTHON_EXE=%AGENT_DIR%python\python.exe"
 set "SERVER_URL="
 
+if not exist "config.ini" (
+    echo [INFO] config.ini not found. Creating default config.ini ...
+    (
+        echo [agent]
+        echo server_url = http://localhost:8222
+        echo client_id =
+        echo dep_code =
+    ) > "config.ini"
+    echo [INFO] Edit config.ini if the server is on another computer.
+)
+
 REM Read server_url from config.ini (works even with [agent] section)
-for /f "usebackq tokens=1,* delims==" %%a in (`findstr /i /b "server_url=" "config.ini"`) do (
-    set "SERVER_URL=%%b"
+if exist "config.ini" (
+    for /f "usebackq tokens=1,* delims==" %%a in (`findstr /i /b "server_url=" "config.ini"`) do (
+        set "SERVER_URL=%%b"
+    )
 )
 if not defined SERVER_URL set "SERVER_URL=http://localhost:8222"
 set "SERVER_URL=%SERVER_URL: =%"

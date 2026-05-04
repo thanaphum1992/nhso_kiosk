@@ -11,9 +11,9 @@
 | Server | `nhso_claim/` | FastAPI web/API, เชื่อม HOSxP, ส่งข้อมูลไป NHSO, แสดงหน้า kiosk/admin |
 | Local Agent | `nhso_claim/agent/` | รันบน Windows client, อ่านบัตรจากเครื่องตัวเอง, ส่งข้อมูลไป server พร้อม `client_id` |
 
-ไฟล์ที่ต้องสร้างเองหลัง clone และไม่ควร commit:
+ไฟล์ที่ต้องสร้างเองหลัง clone 
 
-| ไฟล์/โฟลเดอร์ | เหตุผล |
+| ไฟล์/โฟลเดอร์ | ....... |
 |---|---|
 | `.env` | มีรหัสผ่าน DB, NHSO token, admin password |
 | `agent/config.ini` | config เฉพาะเครื่อง client |
@@ -42,14 +42,11 @@ nano .env
 ```env
 HOSXP_DB_URL=mysql+pymysql://user:password@DB_HOST:3306/hospink
 NHSO_MODE=PRD
-NHSO_TOKEN=...
-HOSPITAL_CODE=XXXXX
+NHSO_TOKEN='xxxxxx-xxxxxx-xxxxxx-xxxx"  #token ปิดสิทธิ
+HOSPITAL_CODE=XXXXX                     #รหัสโรงพยาบาล
 SOURCE_ID=XXXXX
-RECORDER_PID=1234567890123
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change-this-password
-KIOSK_AUTO_RESET_SEC=8
-KIOSK_HOSPITAL_NAME=ชื่อโรงพยาบาล
+RECORDER_PID=123456789012322222
+KIOSK_HOSPITAL_NAME=ชื่อโรงพยาบาล         # diskplay แสดงหน้า kiosk เสียบบัตร
 KIOSK_HOSPITAL_PHONE=0-XXXX-XXXX
 ```
 
@@ -59,7 +56,7 @@ KIOSK_HOSPITAL_PHONE=0-XXXX-XXXX
 docker compose up -d --build
 ```
 
-4. เปิดใช้งานผ่าน port ภายนอก `8222`
+4. เปิดใช้งานผ่าน port:8222
 
 | หน้า/API | URL |
 |---|---|
@@ -67,12 +64,13 @@ docker compose up -d --build
 | Admin | `http://SERVER_IP:8222/admin` |
 | Status | `http://SERVER_IP:8222/api/v1/kiosk/status` |
 
-หมายเหตุ: ใน container แอปรันที่ port `8000` แต่ `docker-compose.yml` map ออกมาที่ host เป็น `8222:8000`
+หมายเหตุ: ใน container ในแอปรันที่ port `8000` แต่ `docker-compose.yml` map ออกมาที่ Port `8222`  client เข้าใช้งาน http://SERVER_IP:8222
 
 ## Database
 
 ในหน้า Admin สามารถทดสอบ connection และสั่ง setup ตารางได้ หรือสร้างตารางเองใน database HOSxP:
 
+Database สร้าง แยกสำหรับ เก็บ log การขอ เลข ENDPOINT (โปรแกรมจะเช็ค VN ที่ข้อเเล้วจากคารางนี้)
 ```sql
 CREATE TABLE IF NOT EXISTS nhso_claim_log (
     id               INT PRIMARY KEY AUTO_INCREMENT,
@@ -161,15 +159,7 @@ config.ini: client_id = ER-01
 browser:    http://SERVER_IP:8222/kiosk?client_id=ER-01
 ```
 
-## Log
 
-| ส่วน | ที่เก็บ |
-|---|---|
-| Server app log | `./logs/nhso_kiosk.log` |
-| Docker log | `docker compose logs -f nhso-kiosk` |
-| Agent log | `agent/agent.log` หรือ `%APPDATA%\NHSOLocalAgent\agent.log` ถ้ารันแบบ frozen |
-
-`agent.log` ถูก mask ข้อมูลสำคัญแล้ว เช่น CID แสดงเฉพาะ 4 หลักท้าย และชื่อแสดงแบบย่อ
 
 ## คำสั่งที่ใช้บ่อย
 

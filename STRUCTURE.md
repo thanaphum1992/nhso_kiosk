@@ -34,7 +34,7 @@ nhso_claim/
 │   ├── build_agent.bat               # setup Embedded Python + packages
 │   ├── Card_reader_agent.bat         # เปิด kiosk browser + start agent
 │   ├── .gitignore                    # กัน config/runtime/log ของ agent
-│   └── ขั้นตอนติดตั้งบนเครื่อง kiosk ใหม่.md
+│   └── ขั้นตอนติดตั้งบนเครื่อง kiosk.md
 ├── renderer/
 │   ├── admin.html                    # Electron renderer
 │   ├── kiosk.html                    # Electron renderer
