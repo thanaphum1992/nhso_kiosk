@@ -43,9 +43,8 @@ nano .env
 HOSXP_DB_URL=mysql+pymysql://user:password@DB_HOST:3306/hospink
 NHSO_MODE=PRD
 NHSO_TOKEN='xxxxxx-xxxxxx-xxxxxx-xxxx"  #token ปิดสิทธิ
+RECORDER_PID=123456789012322222         #CID เจ้าของ TOKEN
 HOSPITAL_CODE=XXXXX                     #รหัสโรงพยาบาล
-SOURCE_ID=XXXXX
-RECORDER_PID=123456789012322222
 KIOSK_HOSPITAL_NAME=ชื่อโรงพยาบาล         # diskplay แสดงหน้า kiosk เสียบบัตร
 KIOSK_HOSPITAL_PHONE=0-XXXX-XXXX
 ```
