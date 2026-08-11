@@ -13,6 +13,7 @@ def get_env_values():
         "HOSXP_DB_URL": os.getenv("HOSXP_DB_URL", ""),
         "NHSO_MODE": os.getenv("NHSO_MODE", "PRD"),
         "NHSO_PRD_URL": os.getenv("NHSO_PRD_URL", ""),
+        "NHSO_TEST_URL": os.getenv("NHSO_TEST_URL", ""),
         "HOSPITAL_CODE": os.getenv("HOSPITAL_CODE", ""),
         "SOURCE_ID": os.getenv("SOURCE_ID", ""),
         "NHSO_TOKEN": os.getenv("NHSO_TOKEN", ""),

@@ -16,7 +16,9 @@ class ConfigUpdate(BaseModel):
     NHSO_TOKEN: str
     NHSO_MODE: str = "PRD"
     NHSO_PRD_URL: str
+    NHSO_TEST_URL: str = ""
     HOSPITAL_CODE: str
+    SOURCE_ID: str = ""
     RECORDER_PID: str
     KIOSK_HOSPITAL_NAME: str = ""
     KIOSK_HOSPITAL_PHONE: str = ""
