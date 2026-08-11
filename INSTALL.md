@@ -220,7 +220,9 @@ FLUSH PRIVILEGES;
 
 Smart Card Agent ของ สปสช. (NHSO) เป็นบริการอ่านบัตรประจำตัวประชาชนที่ NHSO Local Agent เรียกใช้ผ่าน port 8189
 
-1. ดาวน์โหลด **Smart Card Agent ของ สปสช.** จากเว็บไซต์ NHSO หรือติดต่อ สปสช. เพื่อรับไฟล์ติดตั้ง
+1. ดาวน์โหลด **Smart Card Agent ของ สปสช.** (v1.2.3 for Windows Production):
+   - ลิงก์ดาวน์โหลด: <https://www.nhso.go.th/th/communicate-th/new/2024-10-30-15-39-50/56726-1-agent-version-1-2-3-for-windows-production/file>
+   - ติดตั้งตามคู่มือที่มาพร้อมกับไฟล์ดาวน์โหลด
 2. เชื่อมต่อเครื่องอ่านบัตรเข้ากับเครื่อง kiosk ผ่าน USB
 3. ติดตั้ง Driver ของเครื่องอ่านบัตร (ถ้าจำเป็น)
 4. เปิด Smart Card Agent ของ สปสช.
