@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 router = APIRouter()
 nhso_service = NHSOService()
 _subscribers: dict[str, set[asyncio.Queue]] = {}
+_process_lock = asyncio.Lock()
 
 def _clean_client_id(value: Optional[str]) -> str:
     value = (value or "").strip()
@@ -178,6 +179,8 @@ async def _process_card_async(cid: Optional[str], name_th: Optional[str], token:
 
             if status == "success":
                 logger.info(f"[NHSO] VN={vn} SUCCESS — authen={authen_code}")
+                if authen_code:
+                    nhso_service.update_visit_pttype_auth_code(vn, authen_code)
                 return {
                     "status": "success",
                     "message_th": "บันทึกการใช้สิทธิ์เรียบร้อยแล้ว",
@@ -211,15 +214,22 @@ async def _process_card_async(cid: Optional[str], name_th: Optional[str], token:
 @router.get("/status")
 async def get_kiosk_status():
     load_dotenv(override=True)
-    status = _card_reader_instance.get_status() if _card_reader_instance else \
-             {"available": False, "reader_name": "none", "monitoring": False}
+    if _card_reader_instance is not None:
+        try:
+            status = _card_reader_instance.get_status()
+        except Exception:
+            status = {"available": False, "reader_name": "error", "monitoring": False}
+    else:
+        status = {"available": False, "reader_name": "none", "monitoring": False}
     return {
-        "reader_available": status["available"],
-        "reader_name": status["reader_name"],
-        "monitoring": status["monitoring"],
+        "reader_available": status.get("available", False),
+        "reader_name": status.get("reader_name", "none"),
+        "monitoring": status.get("monitoring", False),
         "mode": os.getenv("NHSO_MODE", "TEST"),
-        "kiosk_mode": os.getenv("KIOSK_MODE", "false").lower() == "true"
+        "kiosk_mode": os.getenv("KIOSK_MODE", "false").lower() == "true",
+        "healthy": True,
     }
+
 
 @router.get("/stream")
 async def kiosk_stream(request: Request, client_id: Optional[str] = Query(None)):
@@ -240,7 +250,8 @@ async def kiosk_stream(request: Request, client_id: Optional[str] = Query(None))
                         else:
                             yield {"event": "processing", "data": json.dumps({"step": 1, "label": "กำลังค้นหาข้อมูล..."})}
                             token = os.getenv("NHSO_TOKEN", "")
-                            result = await _process_card_async(event.cid, event.name_th, token)
+                            async with _process_lock:
+                                result = await _process_card_async(event.cid, event.name_th, token)
                         yield {"event": result["status"], "data": json.dumps(result)}
                     elif event.type == "remove":
                         yield {"event": "card_removed", "data": "{}"}
@@ -270,7 +281,8 @@ async def remote_insert(body: RemoteCardRequest, request: Request):
     load_dotenv(override=True)
     client_id = _client_id_from_request(request, body.client_id)
     token = os.getenv("NHSO_TOKEN", "")
-    result = await _process_card_async(body.cid, body.name_th, token, dep_code=body.dep_code)
+    async with _process_lock:
+        result = await _process_card_async(body.cid, body.name_th, token, dep_code=body.dep_code)
     await _broadcast(CardEvent(type="insert", cid=body.cid, name_th=body.name_th, result=result), client_id)
     return result
 
@@ -323,5 +335,7 @@ async def claim_by_cid(body: ClaimByCidRequest, authorization: Optional[str] = H
             authen_code=authen_code,
             dep_code=claim_detail.department.code if claim_detail.department else None
         )
+        if status == "success" and authen_code:
+            nhso_service.update_visit_pttype_auth_code(vn, authen_code)
         results.append({"vn": vn, "status": status, "nhso_response": nhso_res, "error_message": error_msg})
     return {"status": "completed", "results": results}

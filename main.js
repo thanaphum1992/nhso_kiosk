@@ -22,9 +22,13 @@ function setupIpcHandlers() {
   });
   
   ipcMain.handle('config:getForceChange', async () => {
-    const res = await fetch(`${baseUrl}/config/`);
-    const data = await res.json();
-    return data.ADMIN_PASSWORD === 'changeme' || data.ADMIN_PASSWORD === '' || data.ADMIN_PASSWORD === 'admin';
+    try {
+      const res = await fetch(`${baseUrl}/config/needs-setup`);
+      const data = await res.json();
+      return data.needs_setup === true;
+    } catch {
+      return true;
+    }
   });
 
   ipcMain.handle('config:update', async (e, data) => {
@@ -81,9 +85,15 @@ function setupIpcHandlers() {
   });
 
   ipcMain.handle('admin:verifyPassword', async (e, pwd) => {
-    const res = await fetch(`${baseUrl}/config/`);
-    const data = await res.json();
-    return data.ADMIN_PASSWORD === pwd || data.ADMIN_PASSWORD === 'changeme' || data.ADMIN_PASSWORD === '';
+    try {
+      const basic = Buffer.from(`admin:${pwd}`).toString('base64');
+      const res = await fetch(`${baseUrl}/config/`, {
+        headers: { 'Authorization': `Basic ${basic}` }
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   });
 
   ipcMain.handle('getBackendPort', () => backendPort);

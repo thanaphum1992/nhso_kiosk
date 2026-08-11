@@ -80,8 +80,8 @@ if errorlevel 1 (
 )
 del /f /q get-pip.py >nul 2>&1
 
-echo [5/5] Installing packages: requests pyscard pythaiidcard ...
-"%PY_EXE%" -m pip install --no-warn-script-location requests pyscard pythaiidcard
+echo [5/5] Installing packages: requests ...
+"%PY_EXE%" -m pip install --no-warn-script-location requests
 if errorlevel 1 (
     echo.
     echo [ERROR] Package installation failed.
@@ -91,7 +91,7 @@ if errorlevel 1 (
 
 echo.
 echo Verifying imports...
-"%PY_EXE%" -c "import requests, smartcard, pythaiidcard; print('OK')"
+"%PY_EXE%" -c "import requests; print('OK')"
 if errorlevel 1 (
     echo.
     echo [ERROR] Package verification failed.

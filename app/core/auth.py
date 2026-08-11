@@ -7,6 +7,15 @@ import os
 
 _security = HTTPBasic(auto_error=False)
 
+_DEFAULT_PASSWORDS = {"", "changeme", "admin"}
+
+
+def _is_first_time_setup() -> bool:
+    load_dotenv(override=True)
+    pwd = os.getenv("ADMIN_PASSWORD", "")
+    return pwd in _DEFAULT_PASSWORDS
+
+
 def require_admin(
     request: Request,
     credentials: Optional[HTTPBasicCredentials] = Depends(_security)
@@ -14,10 +23,6 @@ def require_admin(
     load_dotenv(override=True)
     expected_user = os.getenv("ADMIN_USERNAME", "admin")
     expected_pass = os.getenv("ADMIN_PASSWORD", "")
-
-    # รหัสผ่านว่าง = first-time setup, ผ่านได้เลย
-    if not expected_pass:
-        return True
 
     if not credentials:
         raise HTTPException(

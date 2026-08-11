@@ -23,7 +23,18 @@ class ConfigUpdate(BaseModel):
 
 @router.get("/", dependencies=[Depends(require_admin)])
 async def get_config():
-    return config_manager.get_env_values()
+    values = config_manager.get_env_values()
+    values.pop("ADMIN_PASSWORD", None)
+    return values
+
+
+@router.get("/needs-setup")
+async def needs_setup():
+    values = config_manager.get_env_values()
+    pwd = values.get("ADMIN_PASSWORD", "")
+    return {
+        "needs_setup": not pwd or pwd in ("changeme", "admin"),
+    }
 
 @router.post("/change-password", dependencies=[Depends(require_admin)])
 async def change_password(creds: AdminCredentials):

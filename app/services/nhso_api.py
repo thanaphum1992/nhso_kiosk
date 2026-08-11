@@ -29,7 +29,39 @@ class NHSOService:
         self.hcode = os.getenv("HOSPITAL_CODE", "")
         self.source_id = os.getenv("SOURCE_ID") or "BAAC01"
         self.recorder_pid = os.getenv("RECORDER_PID", "")
-        
+        self.update_visit_pttype_authen = os.getenv(
+            "UPDATE_VISIT_PTTYPE_AUTHEN", "true"
+        ).lower() == "true"
+
+    def update_visit_pttype_auth_code(self, vn: str, auth_code: str) -> bool:
+        """Write NHSO authen code into HOSxP visit_pttype.auth_code (main pttype row)."""
+        if not self.update_visit_pttype_authen:
+            return False
+        if not vn or not auth_code:
+            return False
+
+        db = SessionLocal()
+        try:
+            query = text("""
+                UPDATE visit_pttype vpt
+                INNER JOIN ovst o ON o.vn = vpt.vn AND vpt.pttype = o.pttype
+                SET vpt.auth_code = :auth_code
+                WHERE vpt.vn = :vn
+            """)
+            result = db.execute(query, {"vn": vn, "auth_code": auth_code})
+            db.commit()
+            if result.rowcount > 0:
+                logger.info(f"[HOSxP] visit_pttype.auth_code updated VN={vn}")
+                return True
+            logger.warning(f"[HOSxP] visit_pttype.auth_code no row updated VN={vn}")
+            return False
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[HOSxP] visit_pttype.auth_code update failed VN={vn}: {e}")
+            return False
+        finally:
+            db.close()
+
     def hash_cid(self, cid: str) -> str:
         """Hash CID using SHA256 for PDPA compliance."""
         if not cid:
@@ -297,20 +329,24 @@ class NHSOService:
         """Fetch all visits for today by CID for Kiosk."""
         db = SessionLocal()
         try:
+            # ใช้ ovst เป็นหลัก และ join patient เพื่อหา CID
+            # เพื่อความชัวร์ว่าต่อให้ vn_stat ยังไม่มา ก็ยังหา visit เจอ
             query = text("""
                 SELECT
                     o.vn, o.hn, o.pttype, o.hcode, o.main_dep,
                     o.vstdate, o.vsttime,
-                    v.income, v.rcpt_money, v.uc_money, v.cid
-                FROM vn_stat v
-                JOIN ovst o ON o.vn = v.vn
-                WHERE v.cid = :cid
-                  AND v.vstdate = CURDATE()
+                    v.income, v.rcpt_money, v.uc_money, p.cid
+                FROM ovst o
+                JOIN patient p ON p.hn = o.hn
+                LEFT JOIN vn_stat v ON v.vn = o.vn
+                WHERE p.cid = :cid
+                  AND o.vstdate = CURDATE()
                 ORDER BY o.vsttime DESC
             """)
             
             results = db.execute(query, {"cid": cid}).fetchall()
             if not results:
+                logger.info(f"[DB] No visits found in ovst for CID: {cid}")
                 return []
                 
             visits = []
@@ -318,7 +354,7 @@ class NHSOService:
                 res = row._asdict()
                 vn = res.get('vn')
                 
-                # Map amounts as requested
+                # Map amounts (ถ้า vn_stat ยังไม่มี จะเป็น None ให้ใส่ 0)
                 total_amount = float(res.get('income') or 0)
                 paid_amount = float(res.get('rcpt_money') or 0)
                 privilege_amount = round(total_amount - paid_amount, 3)
