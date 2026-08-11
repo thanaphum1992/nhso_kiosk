@@ -36,7 +36,7 @@
 ```
 เครื่อง kiosk (Windows)                  Server (Docker)
 ┌────────────────────────┐              ┌───────────────────────┐
-│  Smart Card Agent      │              │   FastAPI Backend     │
+│  NHSO SmartCard Agent │              │   FastAPI Backend     │
 │  (port 8189)           │              │   (port 8000)         │
 │         │              │              │         │             │
 │  local_agent.py ───────┼── HTTP POST ─┼──► /api/v1/kiosk/     │
@@ -218,12 +218,12 @@ FLUSH PRIVILEGES;
 
 ### ติดตั้ง Smart Card Agent (port 8189)
 
-Smart Card Agent เป็นบริการที่ NHSO Local Agent ใช้สื่อสารกับเครื่องอ่านบัตร
+Smart Card Agent ของ สปสช. (NHSO) เป็นบริการอ่านบัตรประจำตัวประชาชนที่ NHSO Local Agent เรียกใช้ผ่าน port 8189
 
-1. ดาวน์โหลดและติดตั้ง Smart Card Agent จากผู้ให้บริการ (เช่น [Thai Smart Card Agent](https://github.com/nicktak62/smartcard-agent))
+1. ดาวน์โหลด **Smart Card Agent ของ สปสช.** จากเว็บไซต์ NHSO หรือติดต่อ สปสช. เพื่อรับไฟล์ติดตั้ง
 2. เชื่อมต่อเครื่องอ่านบัตรเข้ากับเครื่อง kiosk ผ่าน USB
 3. ติดตั้ง Driver ของเครื่องอ่านบัตร (ถ้าจำเป็น)
-4. เปิด Smart Card Agent
+4. เปิด Smart Card Agent ของ สปสช.
 5. ตรวจสอบว่าทำงานอยู่:
    - เปิด browser ไปที่ `http://localhost:8189`
    - ถ้าเห็นหน้า Swagger / API = **พร้อมใช้งาน**
@@ -270,7 +270,7 @@ card_settle_delay_sec = 1.5
 | ค่า | คำอธิบาย | ค่าเริ่มต้น |
 |---|---|---|
 | `server_url` | URL ของ Server พร้อม port `8222` | `http://localhost:8222` |
-| `smartcard_agent_url` | URL ของ Smart Card Agent | `http://localhost:8189` |
+| `smartcard_agent_url` | URL ของ Smart Card Agent สปสช. | `http://localhost:8189` |
 | `client_id` | ชื่อเฉพาะเครื่อง kiosk — **เว้นว่าง** จะใช้ชื่อเครื่อง Windows อัตโนมัติ | ชื่อเครื่อง |
 | `dep_code` | รหัสแผนกที่ต้องการกรอง (เว้นว่าง = ทุกแผนก) | ว่าง |
 | `poll_interval_sec` | ความถี่ตรวจสอบบัตร (วินาที) | `0.8` |
@@ -412,7 +412,7 @@ npm run dist
 
 | อาการ | ตรวจสอบ | วิธีแก้ |
 |---|---|---|
-| `Smart Card Agent unreachable` | เปิด `http://localhost:8189` | เริ่ม Smart Card Agent |
+| `Smart Card Agent unreachable` | เปิด `http://localhost:8189` | เริ่ม Smart Card Agent ของ สปสช. |
 | `Cannot connect to server` | `ping SERVER_IP` | ตรวจ server_url ใน config.ini, firewall |
 | อ่านบัตรไม่ได้ | ทดสอบ `http://localhost:8189/api/smartcard/read-card-only` | ตรวจ driver เครื่องอ่านบัตร, เสียบบัตรให้แน่น |
 | Browser ไม่เปิด | ดูใน `Card_reader_agent.bat` output | ติดตั้ง Chrome หรือ Edge |
