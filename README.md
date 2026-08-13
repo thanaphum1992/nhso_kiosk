@@ -1,8 +1,8 @@
 1. Clone หรือ copy repo ไปที่ server
 
 ```bash
-git clone https://github.com/thanaphum1992/nhso_authen_kiosk.git nhso_claim
-cd nhso_claim
+git clone https://github.com/thanaphum1992/nhso_kiosk.git nhso_kiosk
+cd nhso_kiosk
 ```
 
 2. สร้าง `.env` จาก `.env.example`

@@ -1,7 +1,7 @@
 {
   "name": "nhso-claim-desktop",
   "version": "1.0.0",
-  "description": "NHSO Claim & Patient Kiosk Desktop Application",
+  "description": "NHSO Right-Closing (ปิดสิทธิ์) Patient Kiosk Desktop Application",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

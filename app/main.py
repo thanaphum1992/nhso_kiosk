@@ -19,8 +19,8 @@ async def lifespan(app: FastAPI):
     await stop_card_reader()
 
 app = FastAPI(
-    title="NHSO Claim API & Kiosk",
-    description="System for NHSO Claim Closing and Patient Kiosk",
+    title="NHSO Right-Closing Kiosk API",
+    description="System for NHSO right-closing (ปิดสิทธิ์) via patient ID card kiosk",
     version="2.0.0",
     lifespan=lifespan,
     docs_url=None,
