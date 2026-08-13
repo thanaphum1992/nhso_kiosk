@@ -13,6 +13,7 @@ services:
       - APP_DIR=/app/logs
     volumes:
       - ./logs:/app/logs
+      - ./.env:/app/.env
     logging:
       driver: "json-file"
       options:

@@ -181,7 +181,6 @@ async def _process_card_async(cid: Optional[str], name_th: Optional[str], token:
                 logger.info(f"[NHSO] VN={vn} SUCCESS — authen={authen_code}")
                 if authen_code and os.getenv("UPDATE_HOSXP_AUTHEN_CODE", "true").lower() == "true":
                     nhso_service.update_visit_pttype_auth_code(vn, authen_code)
-                    logger.info(f"[HOSxP] Updated authen_code for VN={vn}")
                 return {
                     "status": "success",
                     "message_th": "บันทึกการใช้สิทธิ์เรียบร้อยแล้ว",

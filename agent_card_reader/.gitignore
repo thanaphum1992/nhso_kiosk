@@ -1,6 +1,10 @@
 # Embedded runtime + installed packages
 python/
 
+# Build output
+dist/
+build/
+
 # Sensitive/local config
 config.ini
 

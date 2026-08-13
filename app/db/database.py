@@ -35,6 +35,15 @@ def SessionLocal():
     return _get_session_factory()()
 
 
+def reset_engine():
+    """Dispose cached engine so the next DB call picks up fresh .env credentials."""
+    global _engine, _SessionLocal
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+    _SessionLocal = None
+
+
 def get_db():
     db = SessionLocal()
     try:

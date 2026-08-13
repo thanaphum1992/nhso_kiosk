@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.core import config_manager
 from app.core.auth import require_admin
+from app.db.database import reset_engine
 from sqlalchemy import create_engine, text
+
+_DB_CONFIG_KEYS = {"HOSXP_DB_URL", "DB_ENGINE", "DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_NAME"}
 
 router = APIRouter()
 
@@ -65,6 +68,8 @@ async def update_config(config: ConfigUpdate):
         data = config.dict()
         for key, value in data.items():
             config_manager.update_env_value(key, value)
+        if _DB_CONFIG_KEYS & data.keys():
+            reset_engine()
         return {"message": "Configuration updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

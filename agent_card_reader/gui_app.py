@@ -3,6 +3,7 @@ NHSO Kiosk Agent — Desktop GUI Application
 tkinter-based config editor, status monitor, log viewer, and smart card polling agent.
 """
 import configparser
+import ctypes
 import io
 import os
 import queue
@@ -13,7 +14,7 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from tkinter import ttk, scrolledtext, font as tkfont
 from pathlib import Path
 
 # Force unbuffered output for .exe (only if stdout/stderr exist)
@@ -24,6 +25,26 @@ if getattr(sys, 'frozen', False):
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, line_buffering=True)
 
 import requests
+
+
+def resource_path(relative_path: str) -> str:
+    """Resolve a bundled resource path — works both in dev and in a frozen PyInstaller .exe."""
+    base_path = getattr(sys, '_MEIPASS', None) or str(Path(__file__).resolve().parent)
+    return str(Path(base_path) / relative_path)
+
+
+def load_bundled_fonts():
+    """Register the bundled Sarabun .ttf files as private (process-only) fonts on Windows."""
+    fonts_dir = Path(resource_path('fonts'))
+    if not fonts_dir.is_dir():
+        return
+    FR_PRIVATE = 0x10
+    add_font = ctypes.windll.gdi32.AddFontResourceExW
+    for ttf in fonts_dir.glob('*.ttf'):
+        try:
+            add_font(str(ttf), FR_PRIVATE, 0)
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -103,12 +124,17 @@ def save_config(values: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Browser launcher (from kiosk_launcher.py)
+# Browser launcher
 # ---------------------------------------------------------------------------
 def launch_browser(server_url: str, client_id: str):
+    """Open the kiosk page in the system's default browser."""
     kiosk_url = f"{server_url.rstrip('/')}/kiosk?client_id={client_id}"
     import webbrowser
-    webbrowser.open(kiosk_url)
+    if not webbrowser.open(kiosk_url):
+        raise RuntimeError(
+            'เปิด browser เริ่มต้นของระบบไม่สำเร็จ — '
+            'กรุณาตั้งค่า default browser ของเครื่อง หรือเปิด URL นี้เอง: ' + kiosk_url
+        )
     return f'เปิด browser: {kiosk_url}'
 
 
@@ -253,7 +279,7 @@ class AgentWorker(threading.Thread):
                                 masked = ('*' * (len(cid) - 4)) + cid[-4:] if len(cid) > 4 else cid
                                 name_mask = (name_th[:1] + '***') if name_th else '-'
                                 self._log('INFO', f'✅ อ่านบัตรสำเร็จ — CID: {masked}, ชื่อ: {name_mask}')
-                                self._status('last_card', f'{name_mask} ({time.strftime("%H:%M:%S")})')
+                                self._status('last_card', f'{masked} ({time.strftime("%H:%M:%S")})')
 
                                 payload = {
                                     'cid': cid,
@@ -336,10 +362,20 @@ def _create_tray_icon_image():
 # ---------------------------------------------------------------------------
 class NHSOKioskApp:
     def __init__(self):
+        load_bundled_fonts()
         self.root = tk.Tk()
         self.root.title('NHSO Kiosk Agent')
-        self.root.geometry('680x520')
-        self.root.minsize(600, 460)
+        try:
+            self.root.iconbitmap(resource_path('nhso_kiosk.ico'))
+        except Exception:
+            pass
+        for name in ('TkDefaultFont', 'TkTextFont', 'TkHeadingFont', 'TkMenuFont', 'TkCaptionFont', 'TkTooltipFont'):
+            try:
+                tkfont.nametofont(name).configure(family='Sarabun')
+            except Exception:
+                pass
+        self.root.geometry('680x580')
+        self.root.minsize(600, 520)
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
 
         self.config = load_config()
@@ -372,8 +408,9 @@ class NHSOKioskApp:
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Select All", accelerator="Ctrl+A", command=self._select_all_event)
         
-        # Bind right-click to all entry and text widgets
+        # Bind right-click to all entry and text widgets (classic tk + themed ttk)
         self.root.bind_class('Entry', '<Button-3>', self._show_context_menu)
+        self.root.bind_class('TEntry', '<Button-3>', self._show_context_menu)
         self.root.bind_class('Text', '<Button-3>', self._show_context_menu)
 
     def _show_context_menu(self, event):
@@ -387,7 +424,7 @@ class NHSOKioskApp:
         """Handle Ctrl+C"""
         try:
             widget = self.root.focus_get()
-            if widget and isinstance(widget, (tk.Entry, tk.Text, scrolledtext.ScrolledText)):
+            if widget and isinstance(widget, (tk.Entry, ttk.Entry, tk.Text, scrolledtext.ScrolledText)):
                 widget.event_generate('<<Copy>>')
         except:
             pass
@@ -397,7 +434,7 @@ class NHSOKioskApp:
         """Handle Ctrl+X"""
         try:
             widget = self.root.focus_get()
-            if widget and isinstance(widget, (tk.Entry, tk.Text, scrolledtext.ScrolledText)):
+            if widget and isinstance(widget, (tk.Entry, ttk.Entry, tk.Text, scrolledtext.ScrolledText)):
                 widget.event_generate('<<Cut>>')
         except:
             pass
@@ -407,7 +444,7 @@ class NHSOKioskApp:
         """Handle Ctrl+V"""
         try:
             widget = self.root.focus_get()
-            if widget and isinstance(widget, (tk.Entry, tk.Text, scrolledtext.ScrolledText)):
+            if widget and isinstance(widget, (tk.Entry, ttk.Entry, tk.Text, scrolledtext.ScrolledText)):
                 widget.event_generate('<<Paste>>')
         except:
             pass
@@ -417,7 +454,7 @@ class NHSOKioskApp:
         """Handle Ctrl+A"""
         try:
             widget = self.root.focus_get()
-            if widget and isinstance(widget, (tk.Entry, tk.Text, scrolledtext.ScrolledText)):
+            if widget and isinstance(widget, (tk.Entry, ttk.Entry, tk.Text, scrolledtext.ScrolledText)):
                 widget.select_range(0, 'end')
                 widget.icursor('end')
         except:
@@ -429,13 +466,13 @@ class NHSOKioskApp:
         style.configure('Green.TLabel', foreground='green')
         style.configure('Red.TLabel', foreground='red')
         style.configure('Orange.TLabel', foreground='orange')
-        style.configure('Status.TLabel', font=('Segoe UI', 10))
+        style.configure('Status.TLabel', font=('Sarabun', 10))
 
         # --- Top status bar ---
         top = ttk.Frame(self.root, padding=8)
         top.pack(fill='x')
 
-        ttk.Label(top, text='NHSO Kiosk Agent', font=('Segoe UI', 14, 'bold')).pack(side='left')
+        ttk.Label(top, text='NHSO Kiosk Agent', font=('Sarabun', 14, 'bold')).pack(side='left')
 
         self.lbl_agent_status = ttk.Label(top, text='● หยุดอยู่', style='Red.TLabel')
         self.lbl_agent_status.pack(side='right', padx=8)
@@ -471,6 +508,10 @@ class NHSOKioskApp:
         frame = ttk.Frame(self.notebook, padding=16)
         self.notebook.add(frame, text=' ⚙ ตั้งค่า ')
 
+        base_size = tkfont.nametofont('TkDefaultFont').cget('size')
+        field_size = (base_size - 2) if base_size < 0 else (base_size + 2)
+        field_font = ('Sarabun', field_size)
+
         self.settings_vars = {}
         fields = [
             ('server_url', 'Server URL (kiosk):', 'http://localhost:8222'),
@@ -482,11 +523,11 @@ class NHSOKioskApp:
         ]
 
         for i, (key, label, hint) in enumerate(fields):
-            ttk.Label(frame, text=label).grid(row=i, column=0, sticky='w', pady=4)
+            ttk.Label(frame, text=label, font=field_font).grid(row=i, column=0, sticky='w', pady=4)
             var = tk.StringVar()
-            entry = ttk.Entry(frame, textvariable=var, width=40)
+            entry = ttk.Entry(frame, textvariable=var, width=40, font=field_font)
             entry.grid(row=i, column=1, sticky='ew', padx=8, pady=4)
-            ttk.Label(frame, text=hint, foreground='gray').grid(row=i, column=2, sticky='w', pady=4)
+            ttk.Label(frame, text=hint, foreground='gray', font=field_font).grid(row=i, column=2, sticky='w', pady=4)
             self.settings_vars[key] = var
 
         frame.columnconfigure(1, weight=1)
@@ -512,21 +553,21 @@ class NHSOKioskApp:
         ]
 
         for i, (key, label) in enumerate(rows):
-            ttk.Label(frame, text=label, font=('Segoe UI', 10, 'bold')).grid(row=i, column=0, sticky='w', pady=6)
-            lbl = ttk.Label(frame, text='—', font=('Segoe UI', 10))
+            ttk.Label(frame, text=label, font=('Sarabun', 10, 'bold')).grid(row=i, column=0, sticky='w', pady=6)
+            lbl = ttk.Label(frame, text='—', font=('Sarabun', 10))
             lbl.grid(row=i, column=1, sticky='w', padx=12, pady=6)
             self.status_labels[key] = lbl
 
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=len(rows), column=0, columnspan=2, pady=16)
-        ttk.Button(btn_frame, text='🔍 ตรวจสถานะตอนนี้', command=self._check_smartcard_status).pack(side='left', padx=4)
+        ttk.Button(btn_frame, text='🔍 ตรวจสอบสถานะเครื่องอ่านบัตร', command=self._check_smartcard_status).pack(side='left', padx=4)
 
     def _build_log_tab(self):
         frame = ttk.Frame(self.notebook, padding=8)
         self.notebook.add(frame, text=' 📋 Log ')
 
         self.log_text = scrolledtext.ScrolledText(frame, height=15, state='normal',
-                                                  font=('Consolas', 9), wrap='word')
+                                                  font=('Sarabun', 9), wrap='word')
         self.log_text.pack(fill='both', expand=True)
         
         # Prevent editing but allow selection and copying
@@ -558,7 +599,15 @@ class NHSOKioskApp:
         self.config = load_config()
         self._log_to_gui('INFO', f'💾 บันทึก config.ini สำเร็จ — {_config_path()}')
         if self.agent_worker and not self.agent_worker.stopped:
-            self._log_to_gui('WARNING', '⚠ Agent กำลังทำงานอยู่ — การตั้งค่าใหม่จะมีผลหลังหยุดแล้วเริ่มใหม่')
+            self._log_to_gui('INFO', '🔄 กำลังรีสตาร์ท Agent เพื่อใช้ค่าตั้งใหม่...')
+            self.agent_worker.stop()
+            self.root.after(500, self._restart_agent_after_save)
+
+    def _restart_agent_after_save(self):
+        if self.agent_worker and self.agent_worker.is_alive():
+            self.root.after(500, self._restart_agent_after_save)
+            return
+        self._start_agent()
 
     # --- Agent ---
     def _start_agent(self):
@@ -587,8 +636,11 @@ class NHSOKioskApp:
     def _open_browser(self):
         server_url = self.settings_vars['server_url'].get().strip() or 'http://localhost:8222'
         client_id = self.settings_vars['client_id'].get().strip() or socket.gethostname()
-        result = launch_browser(server_url, client_id)
-        self._log_to_gui('INFO', f'🌐 {result}')
+        try:
+            result = launch_browser(server_url, client_id)
+            self._log_to_gui('INFO', f'🌐 {result}')
+        except Exception as e:
+            self._log_to_gui('ERROR', f'❌ เปิด browser ไม่สำเร็จ: {e}')
 
     # --- Status polling ---
     def _start_status_polling(self):
@@ -614,10 +666,18 @@ class NHSOKioskApp:
         threading.Thread(target=_check, daemon=True).start()
 
     def _update_sc_status(self, state, readers, card_present):
-        if state == 'connected':
+        if state == 'connected' and readers:
             self.lbl_sc_status.config(text='● Smart Card: เชื่อมต่อแล้ว', style='Green.TLabel')
             self.status_labels['smartcard_agent'].config(text='✅ เชื่อมต่อแล้ว', foreground='green')
-            self.status_labels['reader_name'].config(text=', '.join(readers) if readers else 'ไม่พบ')
+            self.status_labels['reader_name'].config(text=', '.join(readers))
+            self.status_labels['card_present'].config(
+                text='📥 มีบัตรเสียบอยู่' if card_present else '📤 ไม่มีบัตร',
+                foreground='blue' if card_present else 'gray',
+            )
+        elif state == 'connected':
+            self.lbl_sc_status.config(text='● Smart Card: ไม่พบเครื่องอ่านบัตร', style='Orange.TLabel')
+            self.status_labels['smartcard_agent'].config(text='⚠ เชื่อมต่อ Agent ได้ แต่ไม่พบเครื่องอ่าน', foreground='orange')
+            self.status_labels['reader_name'].config(text='ไม่พบ')
             self.status_labels['card_present'].config(
                 text='📥 มีบัตรเสียบอยู่' if card_present else '📤 ไม่มีบัตร',
                 foreground='blue' if card_present else 'gray',
@@ -670,7 +730,13 @@ class NHSOKioskApp:
                 self.btn_stop.config(state='disabled')
         elif key == 'smartcard_agent':
             if value == 'connected':
-                self.lbl_sc_status.config(text='● Smart Card: เชื่อมต่อแล้ว', style='Green.TLabel')
+                reader_lbl = self.status_labels.get('reader_name')
+                reader_text = reader_lbl.cget('text') if reader_lbl else ''
+                has_reader = reader_text not in ('', 'ไม่พบ', 'ไม่ทราบ', '—')
+                if has_reader:
+                    self.lbl_sc_status.config(text='● Smart Card: เชื่อมต่อแล้ว', style='Green.TLabel')
+                else:
+                    self.lbl_sc_status.config(text='● Smart Card: ไม่พบเครื่องอ่านบัตร', style='Orange.TLabel')
                 lbl.config(text='✅ เชื่อมต่อแล้ว', foreground='green')
             elif value == 'disconnected':
                 self.lbl_sc_status.config(text='● Smart Card: ขาดการเชื่อมต่อ', style='Red.TLabel')
