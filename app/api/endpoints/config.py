@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.core import config_manager
 from app.core.auth import require_admin
@@ -12,7 +12,13 @@ class AdminCredentials(BaseModel):
     confirm_password: str
 
 class ConfigUpdate(BaseModel):
-    HOSXP_DB_URL: str
+    HOSXP_DB_URL: str = ""
+    DB_ENGINE: str = "mysql+pymysql"
+    DB_USER: str = ""
+    DB_PASS: str = ""
+    DB_HOST: str = "localhost"
+    DB_PORT: str = "3306"
+    DB_NAME: str = "hospink"
     NHSO_TOKEN: str
     NHSO_MODE: str = "PRD"
     NHSO_PRD_URL: str
@@ -64,16 +70,16 @@ async def update_config(config: ConfigUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/test-db", dependencies=[Depends(require_admin)])
-async def test_db_connection(db_url: str):
+async def test_db_connection(db_url: str = Query(...)):
     try:
         # Create engine without generic timeout to avoid driver conflicts
         engine = create_engine(db_url)
-        
+
         # Try to connect and execute a simple query
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
             conn.commit()
-            
+
         return {"status": "success", "message": "Connection successful"}
     except Exception as e:
         # Provide a cleaner error message
@@ -82,7 +88,7 @@ async def test_db_connection(db_url: str):
             error_msg = "Access denied: Check username/password"
         elif "can't connect to" in error_msg or "not found" in error_msg:
             error_msg = "Could not reach server: Check Host/IP and Port"
-            
+
         return {"status": "error", "message": error_msg}
 
 

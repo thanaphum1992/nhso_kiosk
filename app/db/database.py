@@ -4,6 +4,7 @@ from sqlalchemy.engine import Engine
 from typing import Optional
 import os
 from dotenv import load_dotenv
+from app.core.config_manager import build_db_url
 
 _engine: Optional[Engine] = None
 _SessionLocal: Optional[sessionmaker] = None
@@ -13,9 +14,12 @@ def _get_engine() -> Engine:
     global _engine
     if _engine is None:
         load_dotenv(override=True)
-        url = os.getenv("HOSXP_DB_URL")
+        # Try to build URL from separate variables first, fallback to HOSXP_DB_URL
+        url = build_db_url()
         if not url:
-            raise RuntimeError("HOSXP_DB_URL is not set in .env")
+            url = os.getenv("HOSXP_DB_URL")
+        if not url:
+            raise RuntimeError("Database credentials not set. Set DB_USER/DB_PASS or HOSXP_DB_URL in .env")
         _engine = create_engine(url, pool_pre_ping=True)
     return _engine
 

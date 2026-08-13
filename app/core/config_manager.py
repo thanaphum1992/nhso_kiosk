@@ -1,16 +1,43 @@
 import os
 import re
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from pathlib import Path
 
 ENV_PATH = Path(os.environ.get("ENV_FILE_PATH", ".env"))
 
+def build_db_url():
+    """ประกอบ database URL จากตัวแปรแยก เพื่อความปลอดภัย"""
+    db_engine = os.getenv("DB_ENGINE", "mysql+pymysql")
+    db_user = os.getenv("DB_USER", "")
+    db_pass = os.getenv("DB_PASS", "")
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "3306")
+    db_name = os.getenv("DB_NAME", "hospink")
+    
+    if not db_user or not db_pass:
+        return os.getenv("HOSXP_DB_URL", "")
+    
+    # Encode special characters in password
+    encoded_pass = quote_plus(db_pass)
+    return f"{db_engine}://{db_user}:{encoded_pass}@{db_host}:{db_port}/{db_name}"
+
 def get_env_values():
     load_dotenv(dotenv_path=ENV_PATH, override=True)
+    
+    # Build DB URL from separate variables
+    db_url = build_db_url()
+    
     return {
         "ADMIN_USERNAME": os.getenv("ADMIN_USERNAME", "admin"),
         "ADMIN_PASSWORD": os.getenv("ADMIN_PASSWORD", ""),
-        "HOSXP_DB_URL": os.getenv("HOSXP_DB_URL", ""),
+        "HOSXP_DB_URL": db_url,
+        "DB_ENGINE": os.getenv("DB_ENGINE", "mysql+pymysql"),
+        "DB_USER": os.getenv("DB_USER", ""),
+        "DB_PASS": os.getenv("DB_PASS", ""),
+        "DB_HOST": os.getenv("DB_HOST", "localhost"),
+        "DB_PORT": os.getenv("DB_PORT", "3306"),
+        "DB_NAME": os.getenv("DB_NAME", "hospink"),
         "NHSO_MODE": os.getenv("NHSO_MODE", "PRD"),
         "NHSO_PRD_URL": os.getenv("NHSO_PRD_URL", ""),
         "NHSO_TEST_URL": os.getenv("NHSO_TEST_URL", ""),
@@ -24,6 +51,8 @@ def get_env_values():
         "KIOSK_AUTO_RESET_SEC": os.getenv("KIOSK_AUTO_RESET_SEC", "8"),
         "KIOSK_HOSPITAL_NAME": os.getenv("KIOSK_HOSPITAL_NAME", ""),
         "KIOSK_HOSPITAL_PHONE": os.getenv("KIOSK_HOSPITAL_PHONE", ""),
+        "UPDATE_HOSXP_AUTHEN_CODE": os.getenv("UPDATE_HOSXP_AUTHEN_CODE", "true"),
+        "NHSO_VERIFY_SSL": os.getenv("NHSO_VERIFY_SSL", "false"),
     }
 
 def update_env_value(key: str, value: str):

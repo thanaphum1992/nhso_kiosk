@@ -7,7 +7,7 @@ import hashlib
 import json
 import traceback
 from datetime import datetime, timedelta, time as dt_time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from sqlalchemy import text
 from app.models.claim import NHSOClaimDetail, Department
@@ -20,12 +20,10 @@ requests.packages.urllib3.disable_warnings()
 class NHSOService:
     def __init__(self):
         load_dotenv(override=True)
-        self.mode = os.getenv("NHSO_MODE", "TEST")
-        if self.mode == "PRD":
-            self.url = os.getenv("NHSO_PRD_URL", "https://nhsoapi.nhso.go.th/nhsoendpoint/api/nhso-claim-detail")
-        else:
-            self.url = os.getenv("NHSO_TEST_URL", "https://test.nhso.go.th/nhsoendpoint/api/nhso-claim-detail")
-            
+        self.mode = os.getenv("NHSO_MODE", "PRD")
+        # Use NHSO_TEST_URL as the main endpoint URL (labeled as "NHSO Endpoint URL" in admin)
+        self.url = os.getenv("NHSO_TEST_URL", "https://nhsoapi.nhso.go.th/nhsoendpoint/api/nhso-claim-detail")
+
         self.hcode = os.getenv("HOSPITAL_CODE", "")
         self.source_id = os.getenv("SOURCE_ID") or "BAAC01"
         self.recorder_pid = os.getenv("RECORDER_PID", "")
@@ -134,6 +132,60 @@ class NHSOService:
         finally:
             db.close()
 
+    def get_claim_history(self, start_date: datetime, search: str = None) -> List[Dict[str, Any]]:
+        """
+        ดึงประวัติการเคลมจาก nhso_claim_log table
+        """
+        db = SessionLocal()
+        try:
+            query = """
+                SELECT 
+                    id, vn, vstdate, cid_hash, status, transaction_id, authen_code,
+                    nhso_status_code, nhso_response, total_amount, paid_amount,
+                    privilege_amount, inscl_code, dep_code, error_message, api_mode, created_at
+                FROM nhso_claim_log
+                WHERE created_at >= :start_date
+            """
+            params = {"start_date": start_date}
+            
+            if search:
+                query += " AND (vn LIKE :search OR cid_hash LIKE :search)"
+                params["search"] = f"%{search}%"
+            
+            query += " ORDER BY created_at DESC LIMIT 1000"
+            
+            result = db.execute(text(query), params)
+            rows = result.fetchall()
+            
+            claims = []
+            for row in rows:
+                claims.append({
+                    "id": row[0],
+                    "vn": row[1],
+                    "vstdate": row[2].strftime("%Y-%m-%d") if row[2] else None,
+                    "cid_hash": row[3],
+                    "status": row[4],
+                    "transaction_id": row[5],
+                    "authen_code": row[6],
+                    "nhso_status_code": row[7],
+                    "nhso_response": json.loads(row[8]) if row[8] else None,
+                    "total_amount": float(row[9]) if row[9] else 0,
+                    "paid_amount": float(row[10]) if row[10] else 0,
+                    "privilege_amount": float(row[11]) if row[11] else 0,
+                    "inscl_code": row[12],
+                    "dep_code": row[13],
+                    "error_message": row[14],
+                    "api_mode": row[15],
+                    "created_at": row[16].isoformat() if row[16] else None
+                })
+            
+            return claims
+        except Exception as e:
+            print(f"Get claim history error: {str(e)}")
+            return []
+        finally:
+            db.close()
+
     def check_privilege(self, pid: str, token: str) -> Dict[str, Any]:
         """
         Check patient privilege from NHSO v2 right-search API
@@ -141,31 +193,87 @@ class NHSOService:
         # Base URL from config, but change path to right-search
         base_url = self.url.split('/api/')[0]
         check_url = f"{base_url}/api/v2/right-search"
-        
+
         # Today's date in ISO format as required by API
         check_date = datetime.now().strftime("%Y-%m-%dT00:00:00")
-        
+
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
-        
+
         params = {
             "pid": pid,
             "checkDate": check_date
         }
-        
+
         try:
-            response = requests.get(
-                check_url, 
-                params=params, 
-                headers=headers, 
-                verify=False,
-                timeout=20
+            # Disable SSL warnings
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            # Create session with SSL verification disabled
+            session = requests.Session()
+            session.verify = False
+            
+            response = session.get(
+                check_url,
+                params=params,
+                headers=headers,
+                timeout=30
             )
             response.raise_for_status()
             return response.json()
+
+        except requests.exceptions.SSLError as ssl_err:
+            # If SSL error still occurs, try with custom SSL context
+            try:
+                import ssl
+                from requests.adapters import HTTPAdapter
+                from urllib3.util.ssl_ import create_urllib3_context
+
+                class TLSAdapter(HTTPAdapter):
+                    def init_poolmanager(self, *args, **kwargs):
+                        ctx = create_urllib3_context()
+                        ctx.check_hostname = False
+                        ctx.verify_mode = ssl.CERT_NONE
+                        # Force TLS 1.2
+                        ctx.set_ciphers('DEFAULT@SECLEVEL=1')
+                        kwargs['ssl_context'] = ctx
+                        return super().init_poolmanager(*args, **kwargs)
+
+                session = requests.Session()
+                session.mount('https://', TLSAdapter())
+                session.verify = False
+
+                response = session.get(
+                    check_url,
+                    params=params,
+                    headers=headers,
+                    timeout=30
+                )
+                response.raise_for_status()
+                return response.json()
+                
+            except Exception as retry_err:
+                return {
+                    "error": f"SSL Connection Failed: {str(retry_err)}",
+                    "details": "ไม่สามารถเชื่อมต่อ NHSO server ได้ กรุณาลองใหม่อีกครั้ง"
+                }
+                
+        except requests.exceptions.Timeout:
+            return {
+                "error": "Connection Timeout",
+                "details": "NHSO server ใช้เวลาตอบกลับนานเกินไป กรุณาลองใหม่"
+            }
+            
+        except requests.exceptions.RequestException as req_err:
+            return {
+                "error": f"Request Failed: {str(req_err)}",
+                "details": "เกิดข้อผิดพลาดในการเชื่อมต่อ NHSO server"
+            }
+            
         except Exception as e:
             return {"error": str(e)}
 

@@ -42,6 +42,10 @@ async def index(request: Request, _=Depends(require_admin)):
     force_change = not env.get("ADMIN_PASSWORD", "")
     return templates.TemplateResponse(request, "index.html", {"force_change": force_change})
 
+@app.get("/admin/history", response_class=HTMLResponse)
+async def history_page(request: Request, _=Depends(require_admin)):
+    return templates.TemplateResponse(request, "history.html", {})
+
 @app.get("/kiosk", response_class=HTMLResponse)
 async def kiosk_page(request: Request):
     load_dotenv(override=True)

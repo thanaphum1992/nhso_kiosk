@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim History | NHSO Connect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.04); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#f8fafc] min-h-screen text-slate-700">
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-72 bg-white border-r border-slate-200 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-10 px-2">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg text-white">
+                        <i class="fas fa-shield-virus text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 leading-none">NHSO Connect</h1>
+                        <p class="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Smart Claim Portal</p>
+                    </div>
+                </div>
+                <nav class="space-y-1">
+                    <a href="/admin" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                        <i class="fas fa-cog group-hover:text-indigo-500"></i> Configuration
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-semibold transition-all">
+                        <i class="fas fa-history"></i> Claim History
+                    </a>
+                    <a href="/kiosk" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                        <i class="fas fa-desktop group-hover:text-indigo-500"></i> Kiosk
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-10 overflow-y-auto custom-scrollbar">
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900">Claim History</h2>
+                    <p class="text-slate-500 text-sm">ติดตามและวิเคราะห์การส่งเคลม</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="date-range" class="bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="today">วันนี้</option>
+                        <option value="week">สัปดาห์นี้</option>
+                        <option value="month" selected>เดือนนี้</option>
+                        <option value="year">ปีนี้</option>
+                    </select>
+                    <button onclick="exportCSV()" class="px-6 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all">
+                        <i class="fas fa-file-csv mr-2"></i> Export CSV
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-2xl border border-slate-200/60 card-shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-file-invoice text-indigo-600 text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-400 uppercase">Total</span>
+                    </div>
+                    <p id="stat-total" class="text-3xl font-bold text-slate-900">0</p>
+                    <p class="text-sm text-slate-500 mt-1">เคลมทั้งหมด</p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/60 card-shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-check-circle text-emerald-600 text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-emerald-600 uppercase">Success</span>
+                    </div>
+                    <p id="stat-success" class="text-3xl font-bold text-emerald-600">0</p>
+                    <p class="text-sm text-slate-500 mt-1">สำเร็จ</p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/60 card-shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-exclamation-circle text-red-600 text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-red-600 uppercase">Error</span>
+                    </div>
+                    <p id="stat-error" class="text-3xl font-bold text-red-600">0</p>
+                    <p class="text-sm text-slate-500 mt-1">ผิดพลาด</p>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200/60 card-shadow p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-percentage text-amber-600 text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-amber-600 uppercase">Rate</span>
+                    </div>
+                    <p id="stat-rate" class="text-3xl font-bold text-amber-600">0%</p>
+                    <p class="text-sm text-slate-500 mt-1">Success Rate</p>
+                </div>
+            </div>
+
+            <!-- Claim Table -->
+            <div class="bg-white rounded-3xl border border-slate-200/60 card-shadow overflow-hidden">
+                <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-slate-800">รายการเคลมล่าสุด</h3>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="search-input" placeholder="ค้นหา VN, CID, ชื่อ..." class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-64">
+                        <button onclick="loadHistory()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">VN</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">วันที่</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">CID</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">สถานะ</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Authen Code</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">จำนวนเงิน</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="claim-table" class="divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                    <p>กำลังโหลดข้อมูล...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 flex items-center justify-between">
+                    <p class="text-sm text-slate-500">แสดง <span id="showing-count">0</span> จาก <span id="total-count">0</span> รายการ</p>
+                    <div class="flex gap-2">
+                        <button onclick="prevPage()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="page-info" class="px-4 py-2 text-sm font-semibold">หน้า 1</span>
+                        <button onclick="nextPage()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-slate-900">รายละเอียดการเคลม</h3>
+                <button onclick="closeModal()" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="modal-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let pageSize = 20;
+        let allClaims = [];
+
+        async function loadHistory() {
+            const range = document.getElementById('date-range').value;
+            const search = document.getElementById('search-input').value;
+            
+            try {
+                const res = await fetch(`/api/v1/claim/history?range=${range}&search=${encodeURIComponent(search)}`);
+                const data = await res.json();
+                allClaims = data.claims || [];
+                
+                updateStats(data.stats);
+                renderTable();
+            } catch (err) {
+                console.error('Error loading history:', err);
+                document.getElementById('claim-table').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-red-500">
+                            <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                            <p>เกิดข้อผิดพลาด: ${err.message}</p>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-total').textContent = stats.total || 0;
+            document.getElementById('stat-success').textContent = stats.success || 0;
+            document.getElementById('stat-error').textContent = stats.error || 0;
+            
+            const rate = stats.total > 0 ? ((stats.success / stats.total) * 100).toFixed(1) : 0;
+            document.getElementById('stat-rate').textContent = rate + '%';
+        }
+
+        function renderTable() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageData = allClaims.slice(start, end);
+            
+            const tbody = document.getElementById('claim-table');
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-slate-400">
+                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                            <p>ไม่พบข้อมูลการเคลม</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = pageData.map(claim => `
+                    <tr class="hover:bg-slate-50 transition-all">
+                        <td class="px-6 py-4 text-sm font-semibold text-slate-900">${claim.vn}</td>
+                        <td class="px-6 py-4 text-sm text-slate-600">${formatDate(claim.vstdate)}</td>
+                        <td class="px-6 py-4 text-sm font-mono text-slate-600">${maskCID(claim.cid)}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold ${claim.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                                ${claim.status === 'success' ? 'SUCCESS' : 'ERROR'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-mono text-slate-600">${claim.authen_code || '-'}</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-slate-900">฿${(claim.privilege_amount || 0).toLocaleString()}</td>
+                        <td class="px-6 py-4">
+                            <button onclick="showDetail('${claim.vn}')" class="text-indigo-600 hover:text-indigo-700 font-semibold text-sm">
+                                <i class="fas fa-eye"></i> ดู
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            document.getElementById('showing-count').textContent = pageData.length;
+            document.getElementById('total-count').textContent = allClaims.length;
+            document.getElementById('page-info').textContent = `หน้า ${currentPage}`;
+        }
+
+        function maskCID(cid) {
+            if (!cid || cid.length < 4) return cid;
+            return '***' + cid.slice(-4);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const maxPage = Math.ceil(allClaims.length / pageSize);
+            if (currentPage < maxPage) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        function showDetail(vn) {
+            const claim = allClaims.find(c => c.vn === vn);
+            if (!claim) return;
+            
+            const modal = document.getElementById('detail-modal');
+            const content = document.getElementById('modal-content');
+            
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">VN</p>
+                            <p class="text-lg font-bold text-slate-900">${claim.vn}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-1">วันที่</p>
+                            <p class="text-lg font-semibold text-slate-700">${formatDate(claim.vstdate)}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-slate-50 rounded-xl">
+                        <p class="text-xs font-bold text-slate-400 uppercase mb-2">ข้อมูลผู้ป่วย</p>
+                        <p class="text-sm text-slate-700"><strong>CID:</strong> ${maskCID(claim.cid)}</p>
+                    </div>
+                    
+                    <div class="p-4 bg-slate-50 rounded-xl">
+                        <p class="text-xs font-bold text-slate-400 uppercase mb-2">ผลการเคลม</p>
+                        <p class="text-sm text-slate-700"><strong>สถานะ:</strong> 
+                            <span class="px-2 py-1 rounded text-xs font-bold ${claim.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                                ${claim.status.toUpperCase()}
+                            </span>
+                        </p>
+                        <p class="text-sm text-slate-700 mt-2"><strong>Authen Code:</strong> ${claim.authen_code || '-'}</p>
+                        <p class="text-sm text-slate-700 mt-2"><strong>Transaction ID:</strong> ${claim.transaction_id || '-'}</p>
+                    </div>
+                    
+                    <div class="p-4 bg-slate-50 rounded-xl">
+                        <p class="text-xs font-bold text-slate-400 uppercase mb-2">จำนวนเงิน</p>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-xs text-slate-500">Total</p>
+                                <p class="text-lg font-bold text-slate-900">฿${(claim.total_amount || 0).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500">Paid</p>
+                                <p class="text-lg font-bold text-slate-900">฿${(claim.paid_amount || 0).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500">Privilege</p>
+                                <p class="text-lg font-bold text-emerald-600">฿${(claim.privilege_amount || 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${claim.error_message ? `
+                        <div class="p-4 bg-red-50 rounded-xl border border-red-200">
+                            <p class="text-xs font-bold text-red-600 uppercase mb-2">Error</p>
+                            <p class="text-sm text-red-700">${claim.error_message}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${claim.nhso_response ? `
+                        <div class="p-4 bg-slate-50 rounded-xl">
+                            <p class="text-xs font-bold text-slate-400 uppercase mb-2">NHSO Response</p>
+                            <pre class="text-xs text-slate-600 overflow-x-auto">${JSON.stringify(claim.nhso_response, null, 2)}</pre>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('detail-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function exportCSV() {
+            if (allClaims.length === 0) {
+                alert('ไม่มีข้อมูลให้ export');
+                return;
+            }
+            
+            const headers = ['VN', 'วันที่', 'CID', 'สถานะ', 'Authen Code', 'Total', 'Paid', 'Privilege', 'Error'];
+            const rows = allClaims.map(c => [
+                c.vn,
+                c.vstdate,
+                c.cid,
+                c.status,
+                c.authen_code || '',
+                c.total_amount || 0,
+                c.paid_amount || 0,
+                c.privilege_amount || 0,
+                c.error_message || ''
+            ]);
+            
+            const csv = [
+                headers.join(','),
+                ...rows.map(r => r.map(v => `"${v}"`).join(','))
+            ].join('\n');
+            
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `claim-history-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Event listeners
+        document.getElementById('date-range').addEventListener('change', () => {
+            currentPage = 1;
+            loadHistory();
+        });
+
+        document.getElementById('search-input').addEventListener('input', () => {
+            currentPage = 1;
+            loadHistory();
+        });
+
+        document.getElementById('detail-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'detail-modal') closeModal();
+        });
+
+        // Load on page load
+        loadHistory();
+    </script>
+</body>
+</html>

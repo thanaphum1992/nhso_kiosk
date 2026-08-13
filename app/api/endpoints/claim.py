@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Query
 from app.models.claim import NHSOClaimDetail
 from app.services.nhso_api import NHSOService
 from typing import Optional
+from datetime import datetime, timedelta
 
 router = APIRouter()
 nhso_service = NHSOService()
@@ -48,18 +49,18 @@ async def fetch_and_send_claim(
     try:
         if not authorization:
             raise HTTPException(status_code=401, detail="Missing Authorization Header")
-        
+
         # 1. Fetch data from HOSxP
         claim_detail = nhso_service.fetch_data_from_db(vn)
         if not claim_detail:
             raise HTTPException(status_code=404, detail=f"VN {vn} not found in database")
-        
+
         # 2. Extract token
         token = authorization.split(" ")[1] if " " in authorization else authorization
-        
+
         # 3. Send to NHSO
         result = nhso_service.send_claim(claim_detail, token)
-        
+
         return {
             "status": "nhso_error" if (result.get("error") or result.get("dataError")) else "success",
             "nhso_response": result,
@@ -70,3 +71,46 @@ async def fetch_and_send_claim(
             "status": "system_error",
             "message": str(e)
         }
+
+@router.get("/history")
+async def get_claim_history(
+    range: str = Query("month", regex="^(today|week|month|year)$"),
+    search: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    ดึงประวัติการเคลมจาก nhso_claim_log
+    """
+    try:
+        if not authorization:
+            raise HTTPException(status_code=401, detail="Missing Authorization Header")
+        
+        # Calculate date range
+        now = datetime.now()
+        if range == "today":
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif range == "week":
+            start_date = now - timedelta(days=7)
+        elif range == "month":
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:  # year
+            start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # Query from database
+        claims = nhso_service.get_claim_history(start_date, search)
+        
+        # Calculate stats
+        total = len(claims)
+        success = sum(1 for c in claims if c.get("status") == "success")
+        error = total - success
+        
+        return {
+            "stats": {
+                "total": total,
+                "success": success,
+                "error": error
+            },
+            "claims": claims
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

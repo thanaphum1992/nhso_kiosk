@@ -179,8 +179,9 @@ async def _process_card_async(cid: Optional[str], name_th: Optional[str], token:
 
             if status == "success":
                 logger.info(f"[NHSO] VN={vn} SUCCESS — authen={authen_code}")
-                if authen_code:
+                if authen_code and os.getenv("UPDATE_HOSXP_AUTHEN_CODE", "true").lower() == "true":
                     nhso_service.update_visit_pttype_auth_code(vn, authen_code)
+                    logger.info(f"[HOSxP] Updated authen_code for VN={vn}")
                 return {
                     "status": "success",
                     "message_th": "บันทึกการใช้สิทธิ์เรียบร้อยแล้ว",
@@ -225,7 +226,7 @@ async def get_kiosk_status():
         "reader_available": status.get("available", False),
         "reader_name": status.get("reader_name", "none"),
         "monitoring": status.get("monitoring", False),
-        "mode": os.getenv("NHSO_MODE", "TEST"),
+        "mode": os.getenv("NHSO_MODE", "PRD"),
         "kiosk_mode": os.getenv("KIOSK_MODE", "false").lower() == "true",
         "healthy": True,
     }
@@ -335,7 +336,7 @@ async def claim_by_cid(body: ClaimByCidRequest, authorization: Optional[str] = H
             authen_code=authen_code,
             dep_code=claim_detail.department.code if claim_detail.department else None
         )
-        if status == "success" and authen_code:
+        if status == "success" and authen_code and os.getenv("UPDATE_HOSXP_AUTHEN_CODE", "true").lower() == "true":
             nhso_service.update_visit_pttype_auth_code(vn, authen_code)
         results.append({"vn": vn, "status": status, "nhso_response": nhso_res, "error_message": error_msg})
     return {"status": "completed", "results": results}

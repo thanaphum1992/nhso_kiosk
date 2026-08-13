@@ -33,11 +33,11 @@
                     <a href="#" class="flex items-center gap-3 px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-semibold transition-all">
                         <i class="fas fa-cog"></i> Configuration
                     </a>
+                    <a href="/admin/history" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
+                        <i class="fas fa-history group-hover:text-indigo-500"></i> Claim History
+                    </a>
                     <a href="/kiosk" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
                         <i class="fas fa-desktop group-hover:text-indigo-500"></i> Kiosk
-                    </a>
-                    <a href="/docs" target="_blank" class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-medium transition-all group">
-                        <i class="fas fa-book group-hover:text-indigo-500"></i> API Docs
                     </a>
                 </nav>
             </div>
@@ -51,10 +51,16 @@
                     <p class="text-slate-500 text-sm">Configure database connections and NHSO credentials</p>
                 </div>
                 <div class="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
-                    <button onclick="loadConfig()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all">
+                    <button onclick="loadConfig()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all" title="Refresh">
                         <i class="fas fa-sync-alt mr-2"></i> Refresh
                     </button>
-                    <button form="config-form" type="submit" class="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">
+                    <button onclick="exportConfig()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all" title="Export Config">
+                        <i class="fas fa-download mr-2"></i> Export
+                    </button>
+                    <button onclick="importConfig()" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 rounded-xl transition-all" title="Import Config">
+                        <i class="fas fa-upload mr-2"></i> Import
+                    </button>
+                    <button form="config-form" type="submit" onclick="return validateForm()" class="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-all">
                         Save All Changes
                     </button>
                 </div>
@@ -66,7 +72,7 @@
                     <div class="space-y-8">
                         <!-- HOSxP Card -->
                         <section class="bg-white rounded-3xl border border-slate-200/60 card-shadow p-8">
-                            <div class="flex items-center gap-3 mb-8">
+                            <div class="flex items-center gap-3 mb-6">
                                 <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
                                     <i class="fas fa-database text-xl"></i>
                                 </div>
@@ -75,6 +81,22 @@
                                     <p class="text-sm text-slate-400">Primary patient data source</p>
                                 </div>
                             </div>
+                            
+                            <!-- Production Warning -->
+                            <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-exclamation-triangle text-amber-600 mt-0.5"></i>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-amber-900 mb-1">ข้อควรระวังก่อนขึ้น Production</p>
+                                        <ul class="text-xs text-amber-800 space-y-1">
+                                            <li>• ใช้ database user ที่มีสิทธิ์ <strong>SELECT, INSERT, UPDATE</strong> เท่านั้น (ห้ามใช้ root)</li>
+                                            <li>• ตรวจสอบว่า HOSxP database host สามารถเข้าถึงได้จาก Docker container</li>
+                                            <li>• กดปุ่ม <strong>Test</strong> เพื่อตรวจสอบการเชื่อมต่อก่อนบันทึก</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Engine</label>
@@ -82,25 +104,48 @@
                                         <option value="mariadb">MariaDB / MySQL</option>
                                         <option value="mssql">MSSQL (SQL Server)</option>
                                     </select>
+                                    <p class="text-xs text-slate-400 mt-1">เลือกประเภทฐานข้อมูล HOSxP</p>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Host / IP</label>
                                     <input type="text" id="hosxp_host" class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="localhost">
+                                    <p class="text-xs text-slate-400 mt-1">IP หรือ hostname ของ HOSxP server</p>
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                <input type="text" id="hosxp_port" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Port">
-                                <input type="text" id="hosxp_db" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="DB Name">
-                                <input type="text" id="hosxp_user" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="User">
-                                <input type="password" id="hosxp_pass" class="bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Pass">
+                                <div>
+                                    <input type="text" id="hosxp_port" class="w-full bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Port">
+                                    <p class="text-xs text-slate-400 mt-1">Port (default: 3306)</p>
+                                </div>
+                                <div>
+                                    <input type="text" id="hosxp_db" class="w-full bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="DB Name">
+                                    <p class="text-xs text-slate-400 mt-1">ชื่อฐานข้อมูล</p>
+                                </div>
+                                <div>
+                                    <input type="text" id="hosxp_user" class="w-full bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="User">
+                                    <p class="text-xs text-slate-400 mt-1">Username</p>
+                                </div>
+                                <div>
+                                    <input type="password" id="hosxp_pass" class="w-full bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Pass">
+                                    <p class="text-xs text-slate-400 mt-1">Password</p>
+                                </div>
                             </div>
                             <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                <div class="overflow-hidden mr-4">
+                                <div class="overflow-hidden mr-4 flex-1">
                                     <p class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Connection URL</p>
-                                    <input type="text" id="HOSXP_DB_URL" name="HOSXP_DB_URL" class="w-full bg-transparent border-none text-[10px] font-mono text-slate-500 outline-none" readonly>
+                                    <input type="text" id="HOSXP_DB_URL" name="HOSXP_DB_URL" class="w-full bg-transparent border-none text-[10px] font-mono text-slate-500 outline-none truncate" readonly>
                                 </div>
-                                <button type="button" onclick="testDb('HOSXP_DB_URL')" class="whitespace-nowrap px-4 py-2 text-xs font-bold bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">Test</button>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="copyToClipboard('HOSXP_DB_URL')" class="px-3 py-2 text-xs font-bold bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all" title="Copy URL">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button type="button" onclick="toggleFullUrl('HOSXP_DB_URL')" class="px-3 py-2 text-xs font-bold bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all" title="Show/Hide Full URL">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                    <button type="button" onclick="testDb('HOSXP_DB_URL')" class="whitespace-nowrap px-4 py-2 text-xs font-bold bg-white text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">Test</button>
+                                </div>
                             </div>
+                            <div id="db-status-container"></div>
                         </section>
 
                         <!-- Privilege Search Card -->
@@ -131,14 +176,54 @@
                                     <p class="text-sm text-slate-400">Run schema migrations on nhso_claim_log</p>
                                 </div>
                             </div>
+                            
+                            <!-- Info Box -->
+                            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+                                <div class="flex items-start gap-3">
+                                    <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-bold text-blue-900 mb-1">เกี่ยวกับ Database Setup</p>
+                                        <p class="text-xs text-blue-800">
+                                            ระบบจะสร้างตาราง <code class="bg-blue-100 px-1 rounded">nhso_claim_log</code> 
+                                            และเพิ่ม columns ที่จำเป็นสำหรับบันทึกผลการเคลม 
+                                            <strong>ต้องรันครั้งเดียวตอนติดตั้งครั้งแรก</strong> หรือหลังอัพเดท version
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="bg-slate-50 rounded-2xl p-4 mb-4 border border-slate-100">
                                 <p class="text-xs font-bold text-slate-400 uppercase mb-3">Migrations that will run:</p>
                                 <ul class="space-y-2 text-sm font-mono text-slate-600">
-                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN authen_code VARCHAR(50) NULL AFTER transaction_id</li>
-                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN api_mode VARCHAR(5) NULL AFTER error_message</li>
-                                    <li><i class="fas fa-plus-circle text-violet-400 mr-2"></i>ADD COLUMN dep_code VARCHAR(20) NULL AFTER inscl_code</li>
+                                    <li>
+                                        <i class="fas fa-plus-circle text-violet-400 mr-2"></i>
+                                        <span>ADD COLUMN <strong>authen_code</strong> VARCHAR(50)</span>
+                                        <p class="text-xs text-slate-400 ml-6 mt-1">เก็บรหัสยืนยันจาก NHSO (authenCode)</p>
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-plus-circle text-violet-400 mr-2"></i>
+                                        <span>ADD COLUMN <strong>api_mode</strong> VARCHAR(5)</span>
+                                        <p class="text-xs text-slate-400 ml-6 mt-1">โหมด API ที่ใช้ (PRD/TEST)</p>
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-plus-circle text-violet-400 mr-2"></i>
+                                        <span>ADD COLUMN <strong>dep_code</strong> VARCHAR(20)</span>
+                                        <p class="text-xs text-slate-400 ml-6 mt-1">รหัสแผนก (ถ้ามีการกรอง)</p>
+                                    </li>
                                 </ul>
                             </div>
+                            
+                            <!-- Warning -->
+                            <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                                <div class="flex items-start gap-2">
+                                    <i class="fas fa-exclamation-circle text-red-600 mt-0.5 text-sm"></i>
+                                    <p class="text-xs text-red-800">
+                                        <strong>คำเตือน:</strong> Migration ไม่สามารถย้อนกลับได้ 
+                                        กรุณา backup ฐานข้อมูลก่อนรัน
+                                    </p>
+                                </div>
+                            </div>
+
                             <button type="button" onclick="showDbSetupConfirm()" class="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow transition-all">
                                 <i class="fas fa-play mr-2"></i>Run DB Setup
                             </button>
@@ -182,14 +267,26 @@
                                         <input type="text" id="SOURCE_ID" name="SOURCE_ID" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-500" placeholder="BAAC01">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">NHSO Test URL</label>
-                                        <input type="text" id="NHSO_TEST_URL" name="NHSO_TEST_URL" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] font-mono text-indigo-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://test.nhso.go.th/...">
+                                        <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">NHSO Endpoint URL</label>
+                                        <input type="text" id="NHSO_TEST_URL" name="NHSO_TEST_URL" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] font-mono text-indigo-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://nhso.go.th/...">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">NHSO Bearer Token</label>
                                     <input type="text" id="NHSO_TOKEN" name="NHSO_TOKEN" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] font-mono text-indigo-50 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="eyJ...">
                                 </div>
+                                
+                                <!-- Update HOSxP Authen Code Option -->
+                                <div class="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
+                                    <label class="flex items-center gap-3 cursor-pointer">
+                                        <input type="checkbox" id="UPDATE_HOSXP_AUTHEN_CODE" name="UPDATE_HOSXP_AUTHEN_CODE" class="w-5 h-5 rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0">
+                                        <div>
+                                            <p class="text-sm font-bold text-white">เขียน Authen Code กลับ HOSxP</p>
+                                            <p class="text-xs text-slate-400 mt-1">อัพเดท authen_code ในตาราง visit หลังเคลมสำเร็จ</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                
                                 <input type="hidden" id="NHSO_MODE"    name="NHSO_MODE"    value="PRD">
                                 <input type="hidden" id="NHSO_PRD_URL" name="NHSO_PRD_URL">
                             </div>
@@ -434,10 +531,31 @@
         async function loadConfig() {
             const res = await fetch('/api/v1/config/');
             const data = await res.json();
-            ['HOSPITAL_CODE', 'NHSO_TOKEN', 'HOSXP_DB_URL', 'RECORDER_PID', 'NHSO_PRD_URL', 'NHSO_TEST_URL', 'SOURCE_ID', 'KIOSK_HOSPITAL_NAME', 'KIOSK_HOSPITAL_PHONE'].forEach(key => {
+            
+            // Load other config values
+            ['HOSPITAL_CODE', 'NHSO_TOKEN', 'RECORDER_PID', 'NHSO_PRD_URL', 'NHSO_TEST_URL', 'SOURCE_ID', 'KIOSK_HOSPITAL_NAME', 'KIOSK_HOSPITAL_PHONE'].forEach(key => {
                 if (data[key] && document.getElementById(key)) document.getElementById(key).value = data[key];
             });
-            parseUrl(data.HOSXP_DB_URL, 'hosxp');
+
+            // Handle checkbox
+            const checkbox = document.getElementById('UPDATE_HOSXP_AUTHEN_CODE');
+            if (checkbox && data.UPDATE_HOSXP_AUTHEN_CODE) {
+                checkbox.checked = data.UPDATE_HOSXP_AUTHEN_CODE.toLowerCase() === 'true';
+            }
+
+            // Load database credentials (prefer separate fields over URL)
+            if (data.DB_USER || data.DB_HOST) {
+                document.getElementById('hosxp_type').value = data.DB_ENGINE === 'mssql+pyodbc' ? 'mssql' : 'mariadb';
+                document.getElementById('hosxp_user').value = data.DB_USER || '';
+                document.getElementById('hosxp_pass').value = data.DB_PASS || '';
+                document.getElementById('hosxp_host').value = data.DB_HOST || '';
+                document.getElementById('hosxp_port').value = data.DB_PORT || '3306';
+                document.getElementById('hosxp_db').value = data.DB_NAME || '';
+            } else if (data.HOSXP_DB_URL) {
+                // Fallback: parse from URL
+                parseUrl(data.HOSXP_DB_URL, 'hosxp');
+            }
+            
             updateUrls();
         }
 
@@ -453,6 +571,20 @@
             e.preventDefault();
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
+
+            // Handle checkbox: convert to "true"/"false"
+            const checkbox = document.getElementById('UPDATE_HOSXP_AUTHEN_CODE');
+            data.UPDATE_HOSXP_AUTHEN_CODE = checkbox.checked ? "true" : "false";
+            
+            // Add database credentials from input fields
+            const dbType = document.getElementById('hosxp_type').value;
+            data.DB_ENGINE = dbType === 'mariadb' ? 'mysql+pymysql' : 'mssql+pyodbc';
+            data.DB_USER = document.getElementById('hosxp_user').value;
+            data.DB_PASS = document.getElementById('hosxp_pass').value;
+            data.DB_HOST = document.getElementById('hosxp_host').value;
+            data.DB_PORT = document.getElementById('hosxp_port').value || (dbType === 'mssql' ? '1433' : '3306');
+            data.DB_NAME = document.getElementById('hosxp_db').value;
+
             const res = await fetch('/api/v1/config/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             if (res.ok) showToast('Settings Saved'); else showToast('Save Failed', 'error');
         };
@@ -529,7 +661,174 @@
             }
         }
 
+        // ===== Form Validation =====
+        function validateForm() {
+            const required = [
+                { id: 'HOSXP_DB_URL', name: 'Connection URL' },
+                { id: 'HOSPITAL_CODE', name: 'Hospital Code' },
+                { id: 'RECORDER_PID', name: 'Recorder PID' },
+                { id: 'NHSO_TOKEN', name: 'NHSO Token' }
+            ];
+            
+            const missing = required.filter(f => !document.getElementById(f.id).value.trim());
+            if (missing.length > 0) {
+                showToast('กรุณากรอก: ' + missing.map(f => f.name).join(', '), 'error');
+                return false;
+            }
+            
+            // Validate 13-digit IDs
+            const pid = document.getElementById('RECORDER_PID').value.trim();
+            if (pid && !/^\d{13}$/.test(pid)) {
+                showToast('Recorder PID ต้องเป็นตัวเลข 13 หลัก', 'error');
+                return false;
+            }
+            
+            // Validate URL format
+            const dbUrl = document.getElementById('HOSXP_DB_URL').value.trim();
+            if (!dbUrl.match(/^(mysql\+pymysql|mssql\+pyodbc|mssql\+pymssql):\/\//)) {
+                showToast('Connection URL format ไม่ถูกต้อง', 'error');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // ===== Connection URL Helpers =====
+        function copyToClipboard(elementId) {
+            const input = document.getElementById(elementId);
+            const value = input.value;
+            navigator.clipboard.writeText(value).then(() => {
+                showToast('คัดลอกแล้ว: ' + value.substring(0, 50) + '...');
+            }).catch(() => {
+                input.select();
+                document.execCommand('copy');
+                showToast('คัดลอกแล้ว');
+            });
+        }
+
+        function toggleFullUrl(elementId) {
+            const input = document.getElementById(elementId);
+            if (input.classList.contains('truncate')) {
+                input.classList.remove('truncate');
+                input.classList.add('whitespace-normal', 'break-all');
+            } else {
+                input.classList.add('truncate');
+                input.classList.remove('whitespace-normal', 'break-all');
+            }
+        }
+
+        // ===== Auto-save Draft =====
+        let saveTimeout;
+        function setupAutoSave() {
+            const inputs = document.querySelectorAll('#config-form input, #config-form select');
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        const data = {};
+                        inputs.forEach(i => {
+                            if (i.id) data[i.id] = i.value;
+                        });
+                        localStorage.setItem('nhso-admin-draft', JSON.stringify(data));
+                        showToast('บันทึก draft อัตโนมัติ', 'success', 1500);
+                    }, 2000);
+                });
+            });
+        }
+
+        function loadDraft() {
+            const draft = localStorage.getItem('nhso-admin-draft');
+            if (draft) {
+                const data = JSON.parse(draft);
+                Object.keys(data).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && !el.value) el.value = data[id];
+                });
+                showToast('โหลด draft ที่บันทึกไว้', 'success', 2000);
+            }
+        }
+
+        function clearDraft() {
+            localStorage.removeItem('nhso-admin-draft');
+            showToast('ลบ draft แล้ว');
+        }
+
+        // ===== Export/Import Config =====
+        function exportConfig() {
+            const data = {
+                HOSXP_DB_URL: document.getElementById('HOSXP_DB_URL').value,
+                HOSPITAL_CODE: document.getElementById('HOSPITAL_CODE').value,
+                RECORDER_PID: document.getElementById('RECORDER_PID').value,
+                KIOSK_HOSPITAL_NAME: document.getElementById('KIOSK_HOSPITAL_NAME').value,
+                KIOSK_HOSPITAL_PHONE: document.getElementById('KIOSK_HOSPITAL_PHONE').value,
+                SOURCE_ID: document.getElementById('SOURCE_ID').value,
+                NHSO_TEST_URL: document.getElementById('NHSO_TEST_URL').value,
+                NHSO_TOKEN: document.getElementById('NHSO_TOKEN').value,
+                NHSO_MODE: document.getElementById('NHSO_MODE').value,
+                NHSO_PRD_URL: document.getElementById('NHSO_PRD_URL').value,
+                exported_at: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nhso-config-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Export config สำเร็จ');
+        }
+
+        function importConfig() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        Object.keys(data).forEach(key => {
+                            const el = document.getElementById(key);
+                            if (el && data[key]) el.value = data[key];
+                        });
+                        showToast('Import config สำเร็จ กรุณา Save');
+                    } catch (err) {
+                        showToast('ไฟล์ JSON ไม่ถูกต้อง', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // ===== Status Indicators =====
+        function updateConnectionStatus(status, message) {
+            const container = document.getElementById('db-status-container');
+            if (!container) return;
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                testing: 'bg-yellow-500',
+                idle: 'bg-gray-400'
+            };
+            
+            container.innerHTML = `
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="w-3 h-3 rounded-full ${colors[status]} animate-pulse"></span>
+                    <span class="text-xs font-semibold">${message}</span>
+                </div>
+            `;
+        }
+
+        // ===== Initialize =====
         loadConfig();
+        setupAutoSave();
+        setTimeout(loadDraft, 1000);
     </script>
 </body>
 </html>
